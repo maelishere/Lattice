@@ -6,12 +6,15 @@ namespace Lattice.Delivery
 {
     public class Server : Transport
     {
+        private readonly EndPoint m_listen;
         private readonly Queue<int> m_outgoing = new Queue<int>();
         private readonly Dictionary<int, Host> m_hosts = new Dictionary<int, Host>();
 
         public Server(int port, Mode mode) : base(mode)
         {
-            m_socket.Bind(Any(port, mode));
+            m_socket.SendBufferSize = 300000;
+            m_socket.ReceiveBufferSize = 300000;
+            m_socket.Bind(m_listen = Any(port, mode));
             Log.Debug($"Server({m_socket.LocalEndPoint}): Listening");
         }
 
@@ -37,7 +40,7 @@ namespace Lattice.Delivery
 
         public void Update(uint time, Action<int, Segment> receive, Action<int, Sync, uint> sync, Action<int, Error> error)
         {
-            EndPoint listen = m_socket.LocalEndPoint;
+            EndPoint listen = m_listen.Create(m_listen.Serialize());
             if (!ReceiveFrom(ref listen, 
                 (Segment segment) =>
                 {
@@ -52,9 +55,9 @@ namespace Lattice.Delivery
             {
                 if (!endpoint.Value.connection.Update(time, Host.Ping))
                 {
-                    Log.Warning($"Server({m_socket.LocalEndPoint}) timed out from Client({endpoint.Key}|{endpoint.Value.address})");
+                    /*Log.Warning($"Server({m_socket.LocalEndPoint}) timed out from Client({endpoint.Key}|{endpoint.Value.address})");
                     error?.Invoke(endpoint.Key, Error.Timeout);
-                    m_outgoing.Enqueue(endpoint.Key);
+                    m_outgoing.Enqueue(endpoint.Key);*/
                 }
             }
 

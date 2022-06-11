@@ -72,7 +72,7 @@ namespace Lattice.Transmission.Carrier
                         m_sending[i].Post(time + RESEND);
                     }
                 }
-                else if (i < m_current || i == 0)
+                else if ((i < m_current || i == 0) && m_waiting.Count > 0)
                 {
                     if (i == m_waiting.Peek().Serial)
                     {

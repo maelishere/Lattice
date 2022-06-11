@@ -18,8 +18,8 @@ namespace Lattice.Transmission
         private Lancet m_orderded;
 
         private uint m_time = 0;
-        private uint m_shake = 0;
-        private uint m_recieve = 0;
+        private uint m_shaked = 0;
+        private uint m_recieved = 0;
 
         internal Connection(Action<Segment> send, Action<Segment> receive, Action<Segment> signal, Action<Segment, uint> acknowledge)
         {
@@ -45,7 +45,7 @@ namespace Lattice.Transmission
 
         public void Input(Segment segment)
         {
-            m_recieve = m_time;
+            m_recieved = m_time;
             Packet packet = new Packet(segment);
             switch (packet.Channel)
             {
@@ -90,21 +90,27 @@ namespace Lattice.Transmission
 
         public bool Update(uint time, Write handshake)
         {
+            m_status.Update(m_time);
+            /*m_orderded.Update(m_time);
+            m_irregular.Update(m_time);*/
+
             // if receive hasn't been called in a while it will timeout
-            if (time > m_recieve + TIMEOUT)
+            if (m_time > m_recieved + TIMEOUT)
             {
                 // lost connection | Connection Timeout
                 return false;
             }
+
             // sends a ping every interval given it has received the last ping
-            if (time > m_shake + INTERVAL)
+            if (m_time > m_shaked + INTERVAL)
             {
                 // Send Ping
                 if (Signal(true, handshake))
                 {
-                    m_shake = time;
+                    m_shaked = m_time;
                 }
             }
+
             m_time = time;
             return true;
         }

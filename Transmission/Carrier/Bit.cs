@@ -51,10 +51,10 @@ namespace Lattice.Transmission.Carrier
             callback?.Invoke(ref writer);
 
             m_frame.Reset();
-            m_frame.Send = time;
+            /*m_frame.Send = time;*/
             m_frame.Data = new Packet(writer.ToSegment());
-            send?.Invoke(m_frame.Data.Value.Segment);
-            m_frame.Post(time + RESEND);
+           /* send?.Invoke(m_frame.Data.Value.Segment);
+            m_frame.Post(time + RESEND);*/
         }
 
         public override void Update(uint time)

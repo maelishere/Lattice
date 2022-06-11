@@ -49,11 +49,11 @@ namespace Lattice
         public int GetRelativePosition(int index)
         {
             int position = Offset + index;
-            if (position < Offset)
+            /*if (position < Offset)
                 throw new IndexOutOfRangeException($"Relative Index ({position}) Less Than Segement Offset ({Offset})");
             else if (position > Count)
                 throw new IndexOutOfRangeException($"Relative Index ({position}) Greater Than Segement Count ({Count})");
-            else
+            else*/
                 return position;
         }
 
@@ -67,12 +67,14 @@ namespace Lattice
 
         public Segment Slice(int index)
         {
-            return new Segment(Array, GetRelativePosition(index), Count - index);
+            index = GetRelativePosition(index);
+            return new Segment(Array, index, Count - index);
         }
 
         public Segment Slice(int index, int count)
         {
-            return new Segment(Array, GetRelativePosition(index), count);
+            index = GetRelativePosition(index);
+            return new Segment(Array, index, count);
         }
 
         public byte[] ToArray()
