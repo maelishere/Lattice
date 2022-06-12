@@ -40,29 +40,33 @@ namespace Lattice.Delivery
                     sync?.Invoke((Sync)segment[0], delay);
                 });
 
-            m_host.connection.Signal(false, Host.Connect);
+            m_host.Signal(false, Host.Connect);
         }
 
         public void Disconnect()
         {
-            m_host.connection.Signal(false, Host.Disconnect);
+            m_host.Signal(false, Host.Disconnect);
         }
 
         public void Send(Transmission.Channel channel, Write callback)
         {
-            m_host.connection.Output(channel, callback);
+            m_host.Output(channel, callback);
         }
 
-        public void Update(uint time, Action<Error> error)
+        public void Update(Action<Error> error)
         {
             EndPoint remote = m_host.address;
-            if (!ReceiveFrom(ref remote, m_host.connection.Input))
+            if (!ReceiveFrom(ref remote,
+                (Segment segment) =>
+                {
+                    m_host.Input(segment);
+                }))
             {
                 // hasn't received anything in while so timed out
                 Log.Warning($"Client({m_socket.LocalEndPoint}) exception");
                 error?.Invoke(Error.Exception);
             }
-            if (!m_host.connection.Update(time, Host.Ping))
+            if (!m_host.Update(Host.Ping))
             {
                 // hasn't received anything in while so timed out
                 Log.Error($"Client({m_socket.LocalEndPoint}) timeout");

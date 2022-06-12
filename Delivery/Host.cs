@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net;
+using System.Diagnostics;
 
 namespace Lattice.Delivery
 {
@@ -10,11 +11,23 @@ namespace Lattice.Delivery
         public Address address { get; }
         internal Connection connection { get; }
 
+        private readonly Stopwatch m_stopwatch = new Stopwatch();
+        public uint Time => (uint)m_stopwatch.ElapsedMilliseconds;
+
         internal Host(IPAddress ipAddress, int port, Action<Segment> send, Action<Segment> receive, Action<Segment> signal, Action<Segment, uint> acknowledge)
         {
             address = new Address(ipAddress, port);
             connection = new Connection(send, receive, signal, acknowledge);
+
+            m_stopwatch = new Stopwatch();
+            m_stopwatch.Start();
         }
+
+        public bool Signal(bool wait, Write callback) => connection.Signal(Time, wait, callback);
+        public void Input(Segment segment) => connection.Input(Time, segment);
+        public void Output(Channel channel, Write callback) => connection.Output(Time, channel, callback);
+        public bool Update(Write callback) => connection.Update(Time, callback);
+
 
         private static void Body(ref Writer writer)
         {

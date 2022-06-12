@@ -12,8 +12,8 @@ namespace Lattice.Delivery
 
         public Server(int port, Mode mode) : base(mode)
         {
-            m_socket.SendBufferSize = 300000;
-            m_socket.ReceiveBufferSize = 300000;
+            m_socket.SendBufferSize = Buffer.MaxLength;
+            m_socket.ReceiveBufferSize = Buffer.MaxLength;
             m_socket.Bind(m_listen = Any(port, mode));
             Log.Debug($"Server({m_socket.LocalEndPoint}): Listening");
         }
@@ -22,7 +22,7 @@ namespace Lattice.Delivery
         {
             if (m_hosts.TryGetValue(connection, out Host host))
             {
-                host.connection.Signal(false, Host.Disconnect);
+                host.Signal(false, Host.Disconnect);
                 return true;
             }
             return false;
@@ -32,13 +32,13 @@ namespace Lattice.Delivery
         {
             if (m_hosts.TryGetValue(connection, out Host host))
             {
-                host.connection.Output(channel, callback);
+                host.Output(channel, callback);
                 return true;
             }
             return false;
         }
 
-        public void Update(uint time, Action<int, Segment> receive, Action<int, Sync, uint> sync, Action<int, Error> error)
+        public void Update(Action<int, Segment> receive, Action<int, Sync, uint> sync, Action<int, Error> error)
         {
             EndPoint listen = m_listen.Create(m_listen.Serialize());
             if (!ReceiveFrom(ref listen, 
@@ -53,15 +53,15 @@ namespace Lattice.Delivery
 
             foreach (var endpoint in m_hosts)
             {
-                if (!endpoint.Value.connection.Update(time, Host.Ping))
+                if (!endpoint.Value.Update(Host.Ping))
                 {
-                    /*Log.Warning($"Server({m_socket.LocalEndPoint}) timed out from Client({endpoint.Key}|{endpoint.Value.address})");
+                    Log.Warning($"Server({m_socket.LocalEndPoint}) timed out from Client({endpoint.Key}|{endpoint.Value.address})");
                     error?.Invoke(endpoint.Key, Error.Timeout);
-                    m_outgoing.Enqueue(endpoint.Key);*/
+                    m_outgoing.Enqueue(endpoint.Key);
                 }
             }
 
-            while(m_outgoing.Count > 0)
+            while (m_outgoing.Count > 0)
             {
                 m_hosts.Remove(m_outgoing.Dequeue());
             }
@@ -109,7 +109,7 @@ namespace Lattice.Delivery
                 m_hosts.Add(id, host);
                 Log.Debug($"Server({m_socket.LocalEndPoint}) connected to Client({id}|{remote})");
             }
-            m_hosts[id].connection.Input(segment);
+            m_hosts[id].Input(segment);
         }
     }
 }

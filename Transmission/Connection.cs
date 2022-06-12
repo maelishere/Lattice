@@ -17,7 +17,6 @@ namespace Lattice.Transmission
         private Window m_irregular;
         private Lancet m_orderded;
 
-        private uint m_time = 0;
         private uint m_shaked = 0;
         private uint m_recieved = 0;
 
@@ -30,36 +29,36 @@ namespace Lattice.Transmission
             m_orderded = new Lancet(send, receive);
         }
 
-        public bool Signal(bool wait, Write callback)
+        public bool Signal(uint time, bool wait, Write callback)
         {
             if (!m_status.Sending && wait)
             {
                 m_buffer.Reset();
                 m_buffer.Write((byte)Channel.None);
                 m_buffer.Write((byte)Prompt.Shake);
-                m_status.Output(m_time, ref m_buffer, callback);
+                m_status.Output(time, ref m_buffer, callback);
                 return true;
             }
             return false;
         }
 
-        public void Input(Segment segment)
+        public void Input(uint time, Segment segment)
         {
-            m_recieved = m_time;
+            m_recieved = time;
             Packet packet = new Packet(segment);
             switch (packet.Channel)
             {
                 case Channel.None:
-                    m_status.Input(m_time, packet);
+                    m_status.Input(time, packet);
                     break;
                 case Channel.Ordered:
-                    m_orderded.Input(m_time, packet);
+                    m_orderded.Input(time, packet);
                     break;
                 case Channel.Irregular:
-                    m_irregular.Input(m_time, packet);
+                    m_irregular.Input(time, packet);
                     break;
                 case Channel.Direct:
-                    m_direct.Input(m_time, packet);
+                    m_direct.Input(time, packet);
                     break;
                 default:
                     Log.Error("Connection input from channel that does not exist");
@@ -67,7 +66,7 @@ namespace Lattice.Transmission
             }
         }
 
-        public void Output(Channel channel, Write callback)
+        public void Output(uint time, Channel channel, Write callback)
         {
             m_buffer.Reset();
             m_buffer.Write((byte)channel);
@@ -75,43 +74,41 @@ namespace Lattice.Transmission
             switch (channel)
             {
                 case Channel.Ordered:
-                    m_orderded.Output(m_time, ref m_buffer, callback);
+                    m_orderded.Output(time, ref m_buffer, callback);
                     break;
                 case Channel.Irregular:
-                    m_irregular.Output(m_time, ref m_buffer, callback);
+                    m_irregular.Output(time, ref m_buffer, callback);
                     break;
                 case Channel.Direct:
-                    m_direct.Output(m_time, ref m_buffer, callback);
+                    m_direct.Output(time, ref m_buffer, callback);
                     break;
                 default:
                     throw new ArgumentException("Connection channel does not exist or not allowed");
             }
         }
 
-        public bool Update(uint time, Write handshake)
+        public bool Update(uint time, Write callback)
         {
-            m_status.Update(m_time);
+            m_status.Update(time);
             /*m_orderded.Update(m_time);
             m_irregular.Update(m_time);*/
 
             // if receive hasn't been called in a while it will timeout
-            if (m_time > m_recieved + TIMEOUT)
+            if (time > m_recieved + TIMEOUT)
             {
                 // lost connection | Connection Timeout
                 return false;
             }
 
             // sends a ping every interval given it has received the last ping
-            if (m_time > m_shaked + INTERVAL)
+            if (time > m_shaked + INTERVAL)
             {
                 // Send Ping
-                if (Signal(true, handshake))
+                if (Signal(time, true, callback))
                 {
-                    m_shaked = m_time;
+                    m_shaked = time;
                 }
             }
-
-            m_time = time;
             return true;
         }
     }
