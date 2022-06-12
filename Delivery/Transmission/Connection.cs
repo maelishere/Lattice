@@ -1,8 +1,9 @@
 ﻿using System;
 
-namespace Lattice.Transmission
+namespace Lattice.Delivery.Transmission
 {
-    using Lattice.Transmission.Carrier;
+    using Bolt;
+    using Carrier;
 
     public sealed class Connection
     {
@@ -89,17 +90,6 @@ namespace Lattice.Transmission
 
         public bool Update(uint time, Write callback)
         {
-            m_status.Update(time);
-            /*m_orderded.Update(m_time);
-            m_irregular.Update(m_time);*/
-
-            // if receive hasn't been called in a while it will timeout
-            if (time > m_recieved + TIMEOUT)
-            {
-                // lost connection | Connection Timeout
-                return false;
-            }
-
             // sends a ping every interval given it has received the last ping
             if (time > m_shaked + INTERVAL)
             {
@@ -108,6 +98,17 @@ namespace Lattice.Transmission
                 {
                     m_shaked = time;
                 }
+            }
+
+            m_status.Update(time);
+            m_orderded.Update(time);
+            m_irregular.Update(time);
+
+            // if receive hasn't been called in a while it will timeout
+            if (time > m_recieved + TIMEOUT)
+            {
+                // lost connection | Connection Timeout
+                return false;
             }
             return true;
         }

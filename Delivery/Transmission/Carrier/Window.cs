@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Lattice.Transmission.Carrier
+
+namespace Lattice.Delivery.Transmission.Carrier
 {
+    using Bolt;
+
     public class Window : Module
     {
         const int SIZE = 32;
@@ -57,17 +60,17 @@ namespace Lattice.Transmission.Carrier
                 {
                     writer.Write((byte)Command.Push);
                     writer.Write(time);
-                    writer.Write(i);
+                    writer.Write((byte)i);
                     callback?.Invoke(ref writer);
                     Packet packet = new Packet(writer.ToSegment());
 
                     if (m_waiting[i].Count == 0 && !m_frames[i].Data.HasValue)
                     {
                         m_frames[i].Reset();
-                        m_frames[i].Send = time;
+                        /*m_frames[i].Send = time;*/
                         m_frames[i].Data = packet;
-                        send?.Invoke(m_frames[i].Data.Value.Segment);
-                        m_frames[i].Post(time + RESEND);
+                        /*send?.Invoke(m_frames[i].Data.Value.Segment);
+                        m_frames[i].Post(time + RESEND);*/
                     }
                     else
                     {
@@ -84,6 +87,8 @@ namespace Lattice.Transmission.Carrier
             int max = 0;
             for (byte i = 0; i < SIZE; i++)
             {
+                int count = m_waiting[i].Count;
+
                 if (m_frames[i].Data.HasValue)
                 {
                     if (m_frames[i].Send < time)
@@ -92,7 +97,7 @@ namespace Lattice.Transmission.Carrier
                         m_frames[i].Post(time + RESEND);
                     }
                 }
-                else
+                else if (count > 0)
                 {
                     m_frames[i].Reset();
                     m_frames[i].Send = time;
@@ -101,7 +106,6 @@ namespace Lattice.Transmission.Carrier
                     m_frames[i].Post(time + RESEND);
                 }
 
-                int count = m_waiting[i].Count;
                 if (count > max)
                     max = count;
             }

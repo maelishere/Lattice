@@ -1,4 +1,4 @@
-﻿namespace Lattice.Transmission
+﻿namespace Lattice.Delivery.Transmission
 {
     public enum Command : byte
     {

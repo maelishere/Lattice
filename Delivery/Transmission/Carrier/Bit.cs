@@ -1,7 +1,9 @@
 ﻿using System;
 
-namespace Lattice.Transmission.Carrier
+namespace Lattice.Delivery.Transmission.Carrier
 {
+    using Bolt;
+
     public class Bit : Module
     {
         const int RESEND = 300;

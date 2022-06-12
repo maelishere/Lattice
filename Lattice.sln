@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.32228.343
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Lattice", "Lattice.csproj", "{4A2E29A7-9649-4CB3-82B5-04427E00B71E}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bolt", "..\Bolt\Bolt.csproj", "{BEB8AE6A-5942-4A70-8CB5-CF45284D9E43}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{4A2E29A7-9649-4CB3-82B5-04427E00B71E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4A2E29A7-9649-4CB3-82B5-04427E00B71E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4A2E29A7-9649-4CB3-82B5-04427E00B71E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BEB8AE6A-5942-4A70-8CB5-CF45284D9E43}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BEB8AE6A-5942-4A70-8CB5-CF45284D9E43}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BEB8AE6A-5942-4A70-8CB5-CF45284D9E43}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BEB8AE6A-5942-4A70-8CB5-CF45284D9E43}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Lattice.Transmission.Carrier
+
+namespace Lattice.Delivery.Transmission.Carrier
 {
+    using Bolt;
+
     public class Lancet : Module
     {
         const int SIZE = 16;

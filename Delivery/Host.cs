@@ -4,7 +4,8 @@ using System.Diagnostics;
 
 namespace Lattice.Delivery
 {
-    using Lattice.Transmission;
+    using Bolt;
+    using Transmission;
 
     public sealed class Host
     {

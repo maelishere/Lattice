@@ -1,4 +1,4 @@
-﻿namespace Lattice.Transmission.Carrier
+﻿namespace Lattice.Delivery.Transmission.Carrier
 {
     internal struct Frame
     {

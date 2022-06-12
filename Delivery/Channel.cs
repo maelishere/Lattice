@@ -1,4 +1,4 @@
-﻿namespace Lattice.Transmission
+﻿namespace Lattice.Delivery
 {
     public enum Channel : byte
     {

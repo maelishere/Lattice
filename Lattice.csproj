@@ -6,4 +6,8 @@
     <RootNamespace>Lattice</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Bolt\Bolt.csproj" />
+  </ItemGroup>
+
 </Project>

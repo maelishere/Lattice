@@ -4,6 +4,8 @@ using System.Net.Sockets;
 
 namespace Lattice
 {
+    using Bolt;
+
     public abstract class Transport
     {
         protected readonly Socket m_socket;

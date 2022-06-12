@@ -3,6 +3,8 @@ using System.Net;
 
 namespace Lattice.Delivery
 {
+    using Bolt;
+
     public class Client : Transport
     {
         private readonly Host m_host;
@@ -48,7 +50,7 @@ namespace Lattice.Delivery
             m_host.Signal(false, Host.Disconnect);
         }
 
-        public void Send(Transmission.Channel channel, Write callback)
+        public void Send(Channel channel, Write callback)
         {
             m_host.Output(channel, callback);
         }

@@ -1,7 +1,10 @@
 ﻿using System;
 
-namespace Lattice.Transmission.Carrier
+
+namespace Lattice.Delivery.Transmission.Carrier
 {
+    using Bolt;
+
     public partial class Module
     {
         internal Module(Action<Segment> send, Action<Segment> receive)
@@ -22,8 +25,7 @@ namespace Lattice.Transmission.Carrier
         {
             writer.Write((byte)Command.Push);
             writer.Write(time);
-            writer.Write(0);
-
+            writer.Write((byte)0);
             callback?.Invoke(ref writer);
             send?.Invoke(writer.ToSegment());
         }

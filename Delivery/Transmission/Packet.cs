@@ -1,7 +1,9 @@
 ﻿using System;
 
-namespace Lattice.Transmission
+namespace Lattice.Delivery.Transmission
 {
+    using Bolt;
+
     public struct Packet
     {
         public Packet(Segment segment)

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Lattice
+namespace Lattice.Delivery.Transmission.Carrier
 {
     public struct Mask
     {

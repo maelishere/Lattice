@@ -5,6 +5,10 @@ Low Level API
 
 Work in progress (not in a working state at the moment)
 
+Dependencies 
+
+	Bolt: https://github.com/maelishere/Bolt
+
 Channels
 	
 	Direct	 - unreliable
@@ -12,4 +16,3 @@ Channels
 	Irregular - reliable not sorted
 	
 	Ordered	 - reliable and sorted
-

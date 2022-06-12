@@ -4,6 +4,8 @@ using System.Collections.Generic;
 
 namespace Lattice.Delivery
 {
+    using Bolt;
+
     public class Server : Transport
     {
         private readonly EndPoint m_listen;
@@ -28,7 +30,7 @@ namespace Lattice.Delivery
             return false;
         }
 
-        public bool Send(int connection, Transmission.Channel channel, Write callback)
+        public bool Send(int connection, Channel channel, Write callback)
         {
             if (m_hosts.TryGetValue(connection, out Host host))
             {
