@@ -9,7 +9,7 @@ namespace Lattice.Delivery
     {
         private readonly Host m_host;
 
-        public Client(Mode mode, IPEndPoint remote, Action<Segment> receive, Action<Sync, uint> sync, Action<Error> error) : base(mode)
+        public Client(Mode mode, IPEndPoint remote, Receiving receive, Action<Sync, uint> sync, Action<Error> error) : base(mode)
         {
             Log.Debug($"Client({m_socket.LocalEndPoint}) connecting to Server({remote})");
 
@@ -21,9 +21,10 @@ namespace Lattice.Delivery
                     SendTo(segment, casted);
                 }, 
                 receive,
-                (Segment segment) =>
+                (uint timestamp, ref Reader reader) =>
                 {
-                    switch ((Sync)segment[0])
+                    Sync type = (Sync)reader.Read();
+                    switch (type)
                     {
                         case Sync.Disconnect:
                             Log.Warning($"Client({m_socket.LocalEndPoint}) received diconnect request from Server({remote})");
@@ -31,15 +32,16 @@ namespace Lattice.Delivery
                             break;
                     }
                 },
-                (Segment segment, uint delay) =>
+                (uint delay, ref Reader reader) =>
                 {
-                    switch ((Sync)segment[0])
+                    Sync type = (Sync)reader.Read();
+                    switch (type)
                     {
                         case Sync.Disconnect:
                             Log.Warning($"Client({m_socket.LocalEndPoint}) diconnecting from Server({remote})");
                             break;
                     }
-                    sync?.Invoke((Sync)segment[0], delay);
+                    sync?.Invoke(type, delay);
                 });
 
             m_host.Signal(false, Host.Connect);
@@ -61,7 +63,8 @@ namespace Lattice.Delivery
             if (!ReceiveFrom(ref remote,
                 (Segment segment) =>
                 {
-                    m_host.Input(segment);
+                    Reader reader = new Reader(segment);
+                    m_host.Input(ref reader);
                 }))
             {
                 // hasn't received anything in while so timed out

@@ -9,35 +9,43 @@ namespace Lattice.Delivery.Transmission.Carrier
         const int RESEND = 300;
 
         private Frame m_frame;
-        private byte m_serial;
+        private byte m_serial, m_last;
 
         public bool Sending => m_frame.Data.HasValue;
-        private Action<Segment, uint> acknowledge { get; }
+        private Receiving acknowledge { get; }
 
-        internal Bit(Action<Segment> send, Action<Segment> receive, Action<Segment, uint> acknowledge) : base(send, receive)
+        internal Bit(Action<Segment> send, Receiving receive, Receiving acknowledge, Responding response) : base(send, receive, response)
         {
-            this.acknowledge = acknowledge;
+            this.acknowledge = acknowledge; 
+            m_last = byte.MaxValue;
             m_frame = new Frame();
             m_frame.Reset();
         }
 
-        public override void Input(uint time, Packet packet)
+        public override void Input(uint time, ref Reader reader)
         {
-            switch (packet.Command)
+            Header header = reader.ReadHeader();
+            switch (header.command)
             {
                 case Command.Push:
-                    Segment ack = packet.Segment.Slice(0, 9);
-                    ack[2] = (byte)Command.Ack;
-                    send?.Invoke(ack);
+                    send(response(
+                        (ref Writer writer) =>
+                        {
+                            writer.WriteHeader(Command.Ack, header.serial, header.time);
+                        }));
 
-                    receive?.Invoke(packet.Slice);
+                    if (header.serial != m_last)
+                    {
+                        receive?.Invoke(header.time, ref reader);
+                        m_last = header.serial;
+                    }
                     break;
                 case Command.Ack:
-                    if (packet.Serial == m_serial)
+                    if (header.serial == m_serial)
                     {
                         // packet.Time : time it was proccessed / time the first push was sent
                         // time : time the acknowledge was recived relative to last update
-                        acknowledge?.Invoke(packet.Slice, time - packet.Time);
+                        acknowledge(time - header.time, ref reader);
                         m_frame.Reset();
                     }
                     break;
@@ -47,23 +55,18 @@ namespace Lattice.Delivery.Transmission.Carrier
         public override void Output(uint time, ref Writer writer, Write callback)
         {
             m_serial = (byte)(m_serial < 255 ? m_serial + 1 : 0);
-            writer.Write((byte)Command.Push);
-            writer.Write(time);
-            writer.Write(m_serial);
-            callback?.Invoke(ref writer);
+            writer.WriteHeader(Command.Push, m_serial, time);
+            callback(ref writer);
 
             m_frame.Reset();
-            /*m_frame.Send = time;*/
-            m_frame.Data = new Packet(writer.ToSegment());
-           /* send?.Invoke(m_frame.Data.Value.Segment);
-            m_frame.Post(time + RESEND);*/
+            m_frame.Data = writer.ToSegment();
         }
 
         public override void Update(uint time)
         {
             if (m_frame.Data.HasValue && m_frame.Send < time)
             {
-                send?.Invoke(m_frame.Data.Value.Segment);
+                send(m_frame.Data.Value);
                 m_frame.Post(time + RESEND);
             }
         }

@@ -21,13 +21,38 @@ namespace Lattice.Delivery.Transmission
         private uint m_shaked = 0;
         private uint m_recieved = 0;
 
-        internal Connection(Action<Segment> send, Action<Segment> receive, Action<Segment> signal, Action<Segment, uint> acknowledge)
+        internal Connection(Action<Segment> send, Receiving receive, Receiving signal, Receiving acknowledge)
         {
             m_buffer = new Writer(MTU);
-            m_status = new Bit(send, signal, acknowledge);
-            m_direct = new Module(send, receive);
-            m_irregular = new Window(send, receive);
-            m_orderded = new Lancet(send, receive);
+
+            m_status = new Bit(send, signal, acknowledge, 
+                (Write callback)=>
+                {
+                    m_buffer.Reset();
+                    m_buffer.Write(Channel.None);
+                    callback(ref m_buffer);
+                    return m_buffer.ToSegment();
+                });
+
+            m_direct = new Module(send, receive, null);
+
+            m_irregular = new Window(send, receive,
+                (Write callback) =>
+                {
+                    m_buffer.Reset();
+                    m_buffer.Write(Channel.Irregular);
+                    callback(ref m_buffer);
+                    return m_buffer.ToSegment();
+                });
+
+            m_orderded = new Lancet(send, receive,
+                (Write callback) =>
+                {
+                    m_buffer.Reset();
+                    m_buffer.Write(Channel.Ordered);
+                    callback(ref m_buffer);
+                    return m_buffer.ToSegment();
+                });
         }
 
         public bool Signal(uint time, bool wait, Write callback)
@@ -35,31 +60,29 @@ namespace Lattice.Delivery.Transmission
             if (!m_status.Sending && wait)
             {
                 m_buffer.Reset();
-                m_buffer.Write((byte)Channel.None);
-                m_buffer.Write((byte)Prompt.Shake);
+                m_buffer.Write(Channel.None);
                 m_status.Output(time, ref m_buffer, callback);
                 return true;
             }
             return false;
         }
 
-        public void Input(uint time, Segment segment)
+        public void Input(uint time, ref Reader reader)
         {
             m_recieved = time;
-            Packet packet = new Packet(segment);
-            switch (packet.Channel)
+            switch (reader.ReadChannel())
             {
                 case Channel.None:
-                    m_status.Input(time, packet);
+                    m_status.Input(time, ref reader);
                     break;
                 case Channel.Ordered:
-                    m_orderded.Input(time, packet);
+                    m_orderded.Input(time, ref reader);
                     break;
                 case Channel.Irregular:
-                    m_irregular.Input(time, packet);
+                    m_irregular.Input(time, ref reader);
                     break;
                 case Channel.Direct:
-                    m_direct.Input(time, packet);
+                    m_direct.Input(time, ref reader);
                     break;
                 default:
                     Log.Error("Connection input from channel that does not exist");
@@ -70,8 +93,7 @@ namespace Lattice.Delivery.Transmission
         public void Output(uint time, Channel channel, Write callback)
         {
             m_buffer.Reset();
-            m_buffer.Write((byte)channel);
-            m_buffer.Write((byte)Prompt.Accept);
+            m_buffer.Write(channel);
             switch (channel)
             {
                 case Channel.Ordered:

@@ -43,7 +43,5 @@ namespace Lattice.Delivery.Transmission.Carrier
         {
             return $"{{{Convert.ToString(Value, 2).PadLeft(Length, '0')}}}";
         }
-
-        internal static byte IncLoop(byte current) => (byte)(current < Length - 1 ? current++ : 0);
     }
 }

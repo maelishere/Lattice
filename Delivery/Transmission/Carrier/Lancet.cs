@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 
-
 namespace Lattice.Delivery.Transmission.Carrier
 {
     using Bolt;
@@ -11,92 +10,110 @@ namespace Lattice.Delivery.Transmission.Carrier
         const int SIZE = 16;
         const int RESEND = 350;
 
-        private Frame[] m_sending;
-        private Packet?[] m_received;
-        private byte m_current, m_next;
-        private Mask m_local, m_remote;
-        private Queue<Packet> m_waiting;
-
-        internal Lancet(Action<Segment> send, Action<Segment> receive) : base(send, receive)
+        public struct Prompt
         {
-            m_sending = new Frame[SIZE];
-            m_received = new Packet?[SIZE];
-            m_waiting = new Queue<Packet>();
+            public uint time { get; }
+            public Reader reader { get; }
+
+            public Prompt(uint time, Reader reader) : this()
+            {
+                this.time = time;
+                this.reader = reader;
+            }
         }
 
-        public override void Input(uint time, Packet packet)
+        private Frame[] m_sending;
+        private Prompt?[] m_received;
+        private Mask m_local, m_remote;
+        private byte m_here, m_there, m_next;
+        private Queue<Segment>[] m_waiting;
+
+        internal Lancet(Action<Segment> send, Receiving receive, Responding response) : base(send, receive, response)
         {
-            switch (packet.Command)
+            m_sending = new Frame[SIZE];
+            m_received = new Prompt?[SIZE];
+            m_waiting = new Queue<Segment>[SIZE];
+            for (int i = 0; i < SIZE; i++)
+            {
+                m_waiting[i] = new Queue<Segment>();
+            }
+        }
+
+        public override void Input(uint time, ref Reader reader)
+        {
+            Header header = reader.ReadHeader();
+            /*Log.Debug($"Input Frame {header.command}");*/
+            switch (header.command)
             {
                 case Command.Push:
-                    if (!m_remote[packet.Serial])
+                    if (!m_remote[header.serial])
                     {
-                        Writer writer = new Writer(12);
-                        writer.Write((byte)packet.Channel);
-                        writer.Write((byte)packet.Prompt);
-                        writer.Write((byte)Command.Ack);
-                        writer.Write(packet.Time);
-                        writer.Write(packet.Serial);
-                        writer.Write(m_local.Value);
-
-                        send?.Invoke(writer.ToSegment());
+                        send(response(
+                            (ref Writer writer) =>
+                            {
+                                writer.WriteHeader(Command.Ack, header.serial, header.time);
+                                writer.Write(m_local.Value);
+                                writer.Write(m_here);
+                            }));
                     }
 
-                    // ? need to make sure it wasn't the previous frame at the position
-                    m_local[packet.Serial] = true;
-                    m_received[packet.Serial] = packet;
+                    // ? need to make sure it wasn't any previous or duplicate frame at the position
+                    m_local[header.serial] = true;
+                    m_received[header.serial] = new Prompt(header.time, reader);
+                    /*Log.Debug($"Frame {header.serial} aquired");*/
                     break;
                 case Command.Ack:
-                    // ? need to make sure it wasn't from the previous frame
-                    m_remote.Value = BitConverter.ToUInt16(packet.Segment.Array, 8);
+                    // ? need to make sure it wasn't for any previous or duplicate frame
+                    m_remote.Value = reader.ReadUShort();
+                    m_there = reader.Read();
+                    /*Log.Debug($"Frame {header.serial} acknowledged | There: Remote {m_remote} Marker {m_there}");*/
                     break;
             }
         }
 
         public override void Output(uint time, ref Writer writer, Write callback)
         {
-            writer.Write((byte)Command.Push);
-            writer.Write(time);
-            writer.Write(m_next);
+            writer.WriteHeader(Command.Push, m_next, time);
             callback?.Invoke(ref writer);
-            m_waiting.Enqueue(new Packet(writer.ToSegment()));
-            m_next = Mask.IncLoop(m_next);
+            m_waiting[m_next].Enqueue(writer.ToSegment());
+            /*Log.Debug($"Queued for Frame {m_next}, Waiting {m_waiting[m_next].Count}");*/
+            m_next = Inc(m_next);
         }
 
         public override void Update(uint time)
         {
             for (int i = 0; i < SIZE; i++)
             {
-                if (m_sending[i].Data.HasValue && !m_remote[i])
+                if (m_sending[i].Data.HasValue)
                 {
-                    if (m_sending[i].Send < time)
+                    if (!m_remote[i])
                     {
-                        send?.Invoke(m_sending[i].Data.Value.Segment);
-                        m_sending[i].Post(time + RESEND);
+                        if (m_sending[i].Send < time)
+                        {
+                            send(m_sending[i].Data.Value);
+                            m_sending[i].Post(time + RESEND);
+                        }
                     }
                 }
-                else if ((i < m_current || i == 0) && m_waiting.Count > 0)
+                else if (i >= m_there && m_waiting[i].Count > 0)
                 {
-                    if (i == m_waiting.Peek().Serial)
-                    {
-                        Packet packet = m_waiting.Dequeue();
-                        m_sending[i].Reset();
-                        m_sending[i].Send = time;
-                        m_sending[i].Data = packet;
-                        send?.Invoke(m_sending[i].Data.Value.Segment);
-                        m_sending[i].Post(time + RESEND);
-                    }
+                    m_sending[i].Reset();
+                    m_sending[i].Data = m_waiting[i].Dequeue();
+                    /*Log.Debug($"Sending Frame {i}");*/
                 }
 
-                if (i == m_current && m_received[i].HasValue)
+                if (i == m_here && m_received[i].HasValue)
                 {
-                    receive?.Invoke(m_received[i].Value.Segment);
+                    /*Log.Debug($"Releasing Frame {i}");*/
+                    Reader reader = m_received[i].Value.reader;
+                    receive(m_received[i].Value.time, ref reader);
                     m_received[i] = null;
                     m_local[i] = false;
-
-                    m_current = Mask.IncLoop(m_current);
+                    m_here = Inc(m_here);
                 }
             }
         }
+
+        internal static byte Inc(byte current) => (byte)(current < SIZE - 1 ? current + 1 : 0);
     }
 }

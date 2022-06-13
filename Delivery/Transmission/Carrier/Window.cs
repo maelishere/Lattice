@@ -11,42 +11,52 @@ namespace Lattice.Delivery.Transmission.Carrier
         const int SIZE = 32;
         const int RESEND = 400;
 
-        private int m_level;
         private Frame[] m_frames;
-        /*private uint[] m_recieved;*/
-        private Queue<Packet>[] m_waiting;
+        private Queue<Segment>[] m_waiting;
 
-        internal Window(Action<Segment> send, Action<Segment> receive) : base(send, receive)
+        internal Window(Action<Segment> send, Receiving receive, Responding response) : base(send, receive, response)
         {
             m_frames = new Frame[SIZE];
-            /*m_recieved = new uint[SIZE];*/
-            m_waiting = new Queue<Packet>[SIZE];
+            m_waiting = new Queue<Segment>[SIZE];
             for (int i = 0; i < SIZE; i++)
             {
-                m_waiting[i] = new Queue<Packet>();
+                m_waiting[i] = new Queue<Segment>();
             }
         }
 
-        public override void Input(uint time, Packet packet)
+        private int Level()
         {
-            switch (packet.Command)
+            int max = 0;
+            for (byte i = 0; i < SIZE; i++)
+            {
+                int count = m_waiting[i].Count;
+                if (count > max)
+                    max = count;
+            }
+            return max < 1 ? 1 : max;
+        }
+
+        public override void Input(uint time, ref Reader reader)
+        {
+            Header header = reader.ReadHeader();
+            switch (header.command)
             {
                 case Command.Push:
-                    Segment ack = packet.Segment.Slice(0, 9);
-                    ack[2] = (byte)Command.Ack;
-                    send?.Invoke(ack);
 
-                    // ? need to make sure it wasn't from the previous frame at the position
-                    receive?.Invoke(packet.Slice);
+                    send(response(
+                        (ref Writer writer) =>
+                        {
+                            writer.WriteHeader(Command.Ack, header.serial, header.time);
+                        }));
+
+                    // ? need to make sure it wasn't any previous or duplicate frame at the position
+                    receive(header.time, ref reader);
                     break;
                 case Command.Ack:
-                    if (m_frames[packet.Serial].Data.HasValue)
+                    if (m_frames[header.serial].Data.HasValue)
                     {
-                        // make sure it wasn't from the previous frame
-                        if (m_frames[packet.Serial].Data.Value.Time == packet.Time)
-                        {
-                            m_frames[packet.Serial].Reset();
-                        }
+                        // ? need to make sure it wasn't for any previous or duplicate frame
+                        m_frames[header.serial].Reset();
                     }
                     break;
             }
@@ -54,29 +64,25 @@ namespace Lattice.Delivery.Transmission.Carrier
 
         public override void Output(uint time, ref Writer writer, Write callback)
         {
-            for (int i = 0; i < SIZE; i++)
+            int level = Level();
+            for (byte i = 0; i < SIZE; i++)
             {
-                if (m_waiting[i].Count < m_level || i == m_waiting.Length - 1)
+                if (m_waiting[i].Count < level || i == SIZE - 1)
                 {
-                    writer.Write((byte)Command.Push);
-                    writer.Write(time);
-                    writer.Write((byte)i);
+                    writer.WriteHeader(Command.Push, i, time);
                     callback?.Invoke(ref writer);
-                    Packet packet = new Packet(writer.ToSegment());
-
+                    Segment segment = writer.ToSegment();
                     if (m_waiting[i].Count == 0 && !m_frames[i].Data.HasValue)
                     {
                         m_frames[i].Reset();
-                        /*m_frames[i].Send = time;*/
-                        m_frames[i].Data = packet;
-                        /*send?.Invoke(m_frames[i].Data.Value.Segment);
-                        m_frames[i].Post(time + RESEND);*/
+                        m_frames[i].Data = segment;
+                        /*Log.Debug($"Sending Frame {i}");*/
                     }
                     else
                     {
-                        m_waiting[i].Enqueue(packet);
+                        m_waiting[i].Enqueue(segment);
+                        /*Log.Debug($"Level {level} | Queue {i} -> Wating {m_waiting[i].Count}");*/
                     }
-
                     break;
                 }
             }
@@ -84,7 +90,6 @@ namespace Lattice.Delivery.Transmission.Carrier
 
         public override void Update(uint time)
         {
-            int max = 0;
             for (byte i = 0; i < SIZE; i++)
             {
                 int count = m_waiting[i].Count;
@@ -93,23 +98,17 @@ namespace Lattice.Delivery.Transmission.Carrier
                 {
                     if (m_frames[i].Send < time)
                     {
-                        send?.Invoke(m_frames[i].Data.Value.Segment);
+                        send(m_frames[i].Data.Value);
                         m_frames[i].Post(time + RESEND);
                     }
                 }
-                else if (count > 0)
+                else if (count > 0) // we need to make sure remote has released the frame
                 {
                     m_frames[i].Reset();
-                    m_frames[i].Send = time;
                     m_frames[i].Data = m_waiting[i].Dequeue();
-                    send?.Invoke(m_frames[i].Data.Value.Segment);
-                    m_frames[i].Post(time + RESEND);
+                    /*Log.Debug($"Sending Frame {i}");*/
                 }
-
-                if (count > max)
-                    max = count;
             }
-            m_level = max + 1;
         }
     }
 }

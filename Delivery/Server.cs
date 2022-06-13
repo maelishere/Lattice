@@ -40,7 +40,7 @@ namespace Lattice.Delivery
             return false;
         }
 
-        public void Update(Action<int, Segment> receive, Action<int, Sync, uint> sync, Action<int, Error> error)
+        public void Update(ReceivingFrom receive, Action<int, Sync, uint> sync, Action<int, Error> error)
         {
             EndPoint listen = m_listen.Create(m_listen.Serialize());
             if (!ReceiveFrom(ref listen, 
@@ -69,7 +69,7 @@ namespace Lattice.Delivery
             }
         }
 
-        private void Handle(EndPoint remote, Segment segment, Action<int, Segment> receive, Action<int, Sync, uint> sync, Action<int, Error> error)
+        private void Handle(EndPoint remote, Segment segment, ReceivingFrom receive, Action<int, Sync, uint> sync, Action<int, Error> error)
         {
             int id = remote.Serialize().GetHashCode();
             if (!m_hosts.ContainsKey(id))
@@ -81,13 +81,14 @@ namespace Lattice.Delivery
                         EndPoint casted = m_hosts[id].address;
                         SendTo(other, casted);
                     },
-                    (Segment other) =>
+                    (uint timestamp, ref Reader reader) =>
                     {
-                        receive?.Invoke(id, other);
+                        receive?.Invoke(id, timestamp, ref reader);
                     },
-                    (Segment other) =>
+                    (uint timestamp, ref Reader reader) =>
                     {
-                        switch ((Sync)other[0])
+                        Sync type = (Sync)reader.Read();
+                        switch (type)
                         {
                         case Sync.Disconnect:
                                 m_outgoing.Enqueue(id);
@@ -96,22 +97,24 @@ namespace Lattice.Delivery
                                 break;
                         }
                     },
-                    (Segment other, uint delay) =>
+                    (uint delay, ref Reader reader) =>
                     {
-                        switch ((Sync)other[0])
+                        Sync type = (Sync)reader.Read();
+                        switch (type)
                         {
                             case Sync.Disconnect:
                                 m_outgoing.Enqueue(id);
                                 Log.Debug($"Server({m_socket.LocalEndPoint}) disconnecting from Client({id}|{remote})");
                                 break;
                         }
-                        sync?.Invoke(id, (Sync)other[0], delay);
+                        sync?.Invoke(id, type, delay);
                     }
                     );
                 m_hosts.Add(id, host);
                 Log.Debug($"Server({m_socket.LocalEndPoint}) connected to Client({id}|{remote})");
             }
-            m_hosts[id].Input(segment);
+            Reader reading = new Reader(segment);
+            m_hosts[id].Input(ref reading);
         }
     }
 }

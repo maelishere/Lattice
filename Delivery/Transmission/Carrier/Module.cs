@@ -1,31 +1,30 @@
 ﻿using System;
 
-
 namespace Lattice.Delivery.Transmission.Carrier
 {
     using Bolt;
 
-    public partial class Module
+    public class Module
     {
-        internal Module(Action<Segment> send, Action<Segment> receive)
+        internal Module(Action<Segment> send, Receiving receive, Responding response)
         {
             this.send = send;
             this.receive = receive;
+            this.response = response;
         }
 
         protected Action<Segment> send { get; }
-        protected Action<Segment> receive { get; }
+        protected Receiving receive { get; }
+        protected Responding response { get; }
 
-        public virtual void Input(uint time, Packet packet)
+        public virtual void Input(uint time, ref Reader reader)
         {
-            receive?.Invoke(packet.Slice);
+            receive?.Invoke(reader.ReadUInt(), ref reader);
         }
 
         public virtual void Output(uint time, ref Writer writer, Write callback)
         {
-            writer.Write((byte)Command.Push);
             writer.Write(time);
-            writer.Write((byte)0);
             callback?.Invoke(ref writer);
             send?.Invoke(writer.ToSegment());
         }

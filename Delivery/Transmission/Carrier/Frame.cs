@@ -1,11 +1,16 @@
 ﻿namespace Lattice.Delivery.Transmission.Carrier
 {
+    using Bolt;
+
     internal struct Frame
     {
         public uint Sent;
         public uint Send;
         public uint Count;
-        public Packet? Data;
+        public Segment? Data;
+
+        /*public Memo Ack;
+        public Memo Push;*/
 
         public void Reset()
         {

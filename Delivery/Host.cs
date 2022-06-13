@@ -14,8 +14,9 @@ namespace Lattice.Delivery
 
         private readonly Stopwatch m_stopwatch = new Stopwatch();
         public uint Time => (uint)m_stopwatch.ElapsedMilliseconds;
+        public uint Delta { get; private set; }
 
-        internal Host(IPAddress ipAddress, int port, Action<Segment> send, Action<Segment> receive, Action<Segment> signal, Action<Segment, uint> acknowledge)
+        internal Host(IPAddress ipAddress, int port, Action<Segment> send, Receiving receive, Receiving signal, Receiving acknowledge)
         {
             address = new Address(ipAddress, port);
             connection = new Connection(send, receive, signal, acknowledge);
@@ -25,10 +26,16 @@ namespace Lattice.Delivery
         }
 
         public bool Signal(bool wait, Write callback) => connection.Signal(Time, wait, callback);
-        public void Input(Segment segment) => connection.Input(Time, segment);
+        public void Input(ref Reader reader) => connection.Input(Time, ref reader);
         public void Output(Channel channel, Write callback) => connection.Output(Time, channel, callback);
-        public bool Update(Write callback) => connection.Update(Time, callback);
 
+        public bool Update(Write callback)
+        {
+            uint start = Time;
+            bool value = connection.Update(Time, callback);
+            Delta = Time - start;
+            return value;
+        }
 
         private static void Body(ref Writer writer)
         {
