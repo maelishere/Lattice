@@ -7,7 +7,6 @@ namespace Lattice.Delivery.Transmission.Carrier
     public struct Memo
     {
         public uint Time;
-        public uint Queue;
-        public uint Sequence;
+        public uint Count;
     }
 }

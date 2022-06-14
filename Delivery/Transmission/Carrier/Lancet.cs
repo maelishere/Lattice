@@ -25,8 +25,9 @@ namespace Lattice.Delivery.Transmission.Carrier
         private Frame[] m_sending;
         private Prompt?[] m_received;
         private Mask m_local, m_remote;
-        private byte m_here, m_there, m_next;
         private Queue<Segment>[] m_waiting;
+
+        private byte m_here /*local marker*/, m_there /*remote marker*/, m_next/*queue order sequencer*/;
 
         internal Lancet(Action<Segment> send, Receiving receive, Responding response) : base(send, receive, response)
         {
@@ -42,31 +43,56 @@ namespace Lattice.Delivery.Transmission.Carrier
         public override void Input(uint time, ref Reader reader)
         {
             Header header = reader.ReadHeader();
+            uint seq = reader.ReadUInt();
             /*Log.Debug($"Input Frame {header.command}");*/
             switch (header.command)
             {
                 case Command.Push:
-                    if (!m_remote[header.serial])
                     {
-                        send(response(
-                            (ref Writer writer) =>
-                            {
-                                writer.WriteHeader(Command.Ack, header.serial, header.time);
-                                writer.Write(m_local.Value);
-                                writer.Write(m_here);
-                            }));
-                    }
+                        if (!m_remote[header.serial])
+                        {
+                            send(response(
+                                (ref Writer writer) =>
+                                {
+                                    writer.WriteHeader(Command.Ack, header.serial, header.time);
+                                    writer.Write(seq);
+                                    writer.Write(m_local.Value);
+                                    writer.Write(m_here);
+                                }));
+                        }
 
-                    // ? need to make sure it wasn't any previous or duplicate frame at the position
-                    m_local[header.serial] = true;
-                    m_received[header.serial] = new Prompt(header.time, reader);
-                    /*Log.Debug($"Frame {header.serial} aquired");*/
+                        // ? need to make sure it wasn't any previous or duplicate frame at the position
+                        if (seq >= m_sending[header.serial].Push.Count)
+                        {
+                            if (header.time > m_sending[header.serial].Push.Time)
+                            {
+                                m_local[header.serial] = true;
+                                m_received[header.serial] = new Prompt(header.time, reader);
+                                /*Log.Debug($"Frame {header.serial} aquired");*/
+
+                                m_sending[header.serial].Push.Count = seq;
+                                m_sending[header.serial].Push.Time = header.time;
+                            }
+                        }
+                    }
                     break;
                 case Command.Ack:
-                    // ? need to make sure it wasn't for any previous or duplicate frame
-                    m_remote.Value = reader.ReadUShort();
-                    m_there = reader.Read();
-                    /*Log.Debug($"Frame {header.serial} acknowledged | There: Remote {m_remote} Marker {m_there}");*/
+                    {
+                        // ? need to make sure it wasn't for any previous or duplicate frame
+                        if (seq >= m_sending[header.serial].Ack.Count)
+                        {
+                            if (header.time > m_sending[header.serial].Ack.Time)
+                            {
+                                m_sending[header.serial].Reset();
+                                m_remote.Value = reader.ReadUShort();
+                                m_there = reader.Read();
+                                /*Log.Debug($"Frame {header.serial} acknowledged | There: Remote {m_remote} Marker {m_there}");*/
+
+                                m_sending[header.serial].Ack.Count = seq;
+                                m_sending[header.serial].Ack.Time = header.time;
+                            }
+                        }
+                    }
                     break;
             }
         }
@@ -74,15 +100,17 @@ namespace Lattice.Delivery.Transmission.Carrier
         public override void Output(uint time, ref Writer writer, Write callback)
         {
             writer.WriteHeader(Command.Push, m_next, time);
+            writer.Write(m_sending[m_next].Seq);
             callback?.Invoke(ref writer);
             m_waiting[m_next].Enqueue(writer.ToSegment());
             /*Log.Debug($"Queued for Frame {m_next}, Waiting {m_waiting[m_next].Count}");*/
-            m_next = Inc(m_next);
+            m_sending[m_next].Seq++;
+            m_next = Increment(m_next);
         }
 
         public override void Update(uint time)
         {
-            for (int i = 0; i < SIZE; i++)
+            for (byte i = 0; i < SIZE; i++)
             {
                 if (m_sending[i].Data.HasValue)
                 {
@@ -95,7 +123,7 @@ namespace Lattice.Delivery.Transmission.Carrier
                         }
                     }
                 }
-                else if (i >= m_there && m_waiting[i].Count > 0)
+                else if (Within(i, m_there, 8) && m_waiting[i].Count > 0)
                 {
                     m_sending[i].Reset();
                     m_sending[i].Data = m_waiting[i].Dequeue();
@@ -107,13 +135,21 @@ namespace Lattice.Delivery.Transmission.Carrier
                     /*Log.Debug($"Releasing Frame {i}");*/
                     Reader reader = m_received[i].Value.reader;
                     receive(m_received[i].Value.time, ref reader);
+
                     m_received[i] = null;
                     m_local[i] = false;
-                    m_here = Inc(m_here);
+                    m_here = Increment(m_here);
                 }
             }
         }
 
-        internal static byte Inc(byte current) => (byte)(current < SIZE - 1 ? current + 1 : 0);
+        internal static bool Within(int current, int marker, int allowance)
+        {
+            int mark = marker + allowance;
+            if (mark > SIZE) mark = ((mark % SIZE) * 2);
+            return (mark < marker ? current <= mark : false) || current >= marker;
+        }
+
+        internal static byte Increment(int current) => (byte)(current < SIZE - 1 ? current + 1 : 0);
     }
 }

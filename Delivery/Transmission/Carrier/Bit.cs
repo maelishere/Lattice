@@ -28,25 +28,31 @@ namespace Lattice.Delivery.Transmission.Carrier
             switch (header.command)
             {
                 case Command.Push:
-                    send(response(
-                        (ref Writer writer) =>
-                        {
-                            writer.WriteHeader(Command.Ack, header.serial, header.time);
-                        }));
-
-                    if (header.serial != m_last)
                     {
-                        receive?.Invoke(header.time, ref reader);
-                        m_last = header.serial;
+                        Segment segment = reader.Cut(0, reader.Length - reader.Current);
+                        send(response(
+                            (ref Writer writer) =>
+                            {
+                                writer.WriteHeader(Command.Ack, header.serial, header.time);
+                                writer.Write(segment);
+                            }));
+
+                        if (header.serial != m_last)
+                        {
+                            receive?.Invoke(header.time, ref reader);
+                            m_last = header.serial;
+                        }
                     }
                     break;
                 case Command.Ack:
-                    if (header.serial == m_serial)
                     {
-                        // packet.Time : time it was proccessed / time the first push was sent
-                        // time : time the acknowledge was recived relative to last update
-                        acknowledge(time - header.time, ref reader);
-                        m_frame.Reset();
+                        if (header.serial == m_serial)
+                        {
+                            // packet.Time : time it was proccessed / time the first push was sent
+                            // time : time the acknowledge was recived relative to last update
+                            acknowledge(time - header.time, ref reader);
+                            m_frame.Reset();
+                        }
                     }
                     break;
             }

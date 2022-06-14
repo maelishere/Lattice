@@ -3,16 +3,12 @@ C# UDP Networking Library for games
 
 Low Level API
 
-Work in progress (not in a working state at the moment)
-
-Dependencies 
-
-	Bolt: https://github.com/maelishere/Bolt
+Dependence: [Bolt](https://github.com/maelishere/Bolt)
 
 Channels
 	
 	Direct	 - unreliable
 	
-	Irregular - reliable not sorted
+	Irregular - reliable but not in order
 	
-	Ordered	 - reliable and sorted
+	Ordered	 - reliable and in order

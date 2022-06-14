@@ -37,27 +37,19 @@ namespace Lattice.Delivery
             return value;
         }
 
-        private static void Body(ref Writer writer)
-        {
-            writer.Write(new byte[32 - 9]);
-        }
-
         internal static void Ping(ref Writer writer)
         {
             writer.Write((byte)Sync.Ping);
-            Body(ref writer);
         }
 
         internal static void Connect(ref Writer writer)
         {
             writer.Write((byte)Sync.Connect);
-            Body(ref writer);
         }
 
         internal static void Disconnect(ref Writer writer)
         {
             writer.Write((byte)Sync.Disconnect);
-            Body(ref writer);
         }
     }
 }

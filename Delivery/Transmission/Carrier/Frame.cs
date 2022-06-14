@@ -9,8 +9,9 @@
         public uint Count;
         public Segment? Data;
 
-        /*public Memo Ack;
-        public Memo Push;*/
+        public Memo Ack;
+        public Memo Push;
+        public uint Seq;
 
         public void Reset()
         {

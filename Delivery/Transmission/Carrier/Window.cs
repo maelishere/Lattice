@@ -39,24 +39,42 @@ namespace Lattice.Delivery.Transmission.Carrier
         public override void Input(uint time, ref Reader reader)
         {
             Header header = reader.ReadHeader();
+            uint seq = reader.ReadUInt();
             switch (header.command)
             {
                 case Command.Push:
+                    {
+                        send(response(
+                            (ref Writer writer) =>
+                            {
+                                writer.WriteHeader(Command.Ack, header.serial, header.time);
+                                writer.Write(seq);
+                            }));
 
-                    send(response(
-                        (ref Writer writer) =>
+                        // ? need to make sure it wasn't any previous or duplicate frame at the position
+                        if (seq >= m_frames[header.serial].Push.Count)
                         {
-                            writer.WriteHeader(Command.Ack, header.serial, header.time);
-                        }));
-
-                    // ? need to make sure it wasn't any previous or duplicate frame at the position
-                    receive(header.time, ref reader);
+                            if (header.time > m_frames[header.serial].Push.Time)
+                            {
+                                receive(header.time, ref reader);
+                                m_frames[header.serial].Push.Count = seq;
+                                m_frames[header.serial].Push.Time = header.time;
+                            }
+                        }
+                    }
                     break;
                 case Command.Ack:
-                    if (m_frames[header.serial].Data.HasValue)
                     {
                         // ? need to make sure it wasn't for any previous or duplicate frame
-                        m_frames[header.serial].Reset();
+                        if (seq >= m_frames[header.serial].Ack.Count)
+                        {
+                            if (header.time > m_frames[header.serial].Ack.Time)
+                            {
+                                m_frames[header.serial].Reset();
+                                m_frames[header.serial].Ack.Count = seq;
+                                m_frames[header.serial].Ack.Time = header.time;
+                            }
+                        }
                     }
                     break;
             }
@@ -70,6 +88,7 @@ namespace Lattice.Delivery.Transmission.Carrier
                 if (m_waiting[i].Count < level || i == SIZE - 1)
                 {
                     writer.WriteHeader(Command.Push, i, time);
+                    writer.Write(m_frames[i].Seq);
                     callback?.Invoke(ref writer);
                     Segment segment = writer.ToSegment();
                     if (m_waiting[i].Count == 0 && !m_frames[i].Data.HasValue)
@@ -83,6 +102,7 @@ namespace Lattice.Delivery.Transmission.Carrier
                         m_waiting[i].Enqueue(segment);
                         /*Log.Debug($"Level {level} | Queue {i} -> Wating {m_waiting[i].Count}");*/
                     }
+                    m_frames[i].Seq++;
                     break;
                 }
             }

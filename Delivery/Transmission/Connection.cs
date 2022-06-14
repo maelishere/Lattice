@@ -75,15 +75,19 @@ namespace Lattice.Delivery.Transmission
                 case Channel.None:
                     m_status.Input(time, ref reader);
                     break;
-                case Channel.Ordered:
-                    m_orderded.Input(time, ref reader);
-                    break;
-                case Channel.Irregular:
-                    m_irregular.Input(time, ref reader);
-                    break;
+
                 case Channel.Direct:
                     m_direct.Input(time, ref reader);
                     break;
+
+                case Channel.Irregular:
+                    m_irregular.Input(time, ref reader);
+                    break;
+
+                case Channel.Ordered:
+                    m_orderded.Input(time, ref reader);
+                    break;
+
                 default:
                     Log.Error("Connection input from channel that does not exist");
                     break;
@@ -96,17 +100,20 @@ namespace Lattice.Delivery.Transmission
             m_buffer.Write(channel);
             switch (channel)
             {
-                case Channel.Ordered:
-                    m_orderded.Output(time, ref m_buffer, callback);
-                    break;
-                case Channel.Irregular:
-                    m_irregular.Output(time, ref m_buffer, callback);
-                    break;
                 case Channel.Direct:
                     m_direct.Output(time, ref m_buffer, callback);
                     break;
+
+                case Channel.Irregular:
+                    m_irregular.Output(time, ref m_buffer, callback);
+                    break;
+
+                case Channel.Ordered:
+                    m_orderded.Output(time, ref m_buffer, callback);
+                    break;
+
                 default:
-                    throw new ArgumentException("Connection channel does not exist or not allowed");
+                    throw new ArgumentException($"{channel} channel is invalid");
             }
         }
 
