@@ -14,8 +14,6 @@ namespace Lattice.Delivery
 
         public Server(int port, Mode mode) : base(mode)
         {
-            m_socket.SendBufferSize = Buffer.MaxLength;
-            m_socket.ReceiveBufferSize = Buffer.MaxLength;
             m_socket.Bind(m_listen = Any(port, mode));
             Log.Debug($"Server({m_socket.LocalEndPoint}): Listening");
         }
@@ -24,7 +22,7 @@ namespace Lattice.Delivery
         {
             if (m_hosts.TryGetValue(connection, out Host host))
             {
-                host.Signal(false, Host.Disconnect);
+                host.Disconnect();
                 return true;
             }
             return false;
@@ -55,7 +53,7 @@ namespace Lattice.Delivery
 
             foreach (var endpoint in m_hosts)
             {
-                if (!endpoint.Value.Update(Host.Ping))
+                if (!endpoint.Value.Update())
                 {
                     Log.Warning($"Server({m_socket.LocalEndPoint}) timed out from Client({endpoint.Key}|{endpoint.Value.address})");
                     error?.Invoke(endpoint.Key, Error.Timeout);
@@ -110,6 +108,7 @@ namespace Lattice.Delivery
                         sync?.Invoke(id, type, delay);
                     }
                     );
+                host.Connect();
                 m_hosts.Add(id, host);
                 Log.Debug($"Server({m_socket.LocalEndPoint}) connected to Client({id}|{remote})");
             }

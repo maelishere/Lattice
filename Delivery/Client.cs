@@ -44,12 +44,12 @@ namespace Lattice.Delivery
                     sync?.Invoke(type, delay);
                 });
 
-            m_host.Signal(false, Host.Connect);
+            m_host.Connect();
         }
 
         public void Disconnect()
         {
-            m_host.Signal(false, Host.Disconnect);
+            m_host.Disconnect();
         }
 
         public void Send(Channel channel, Write callback)
@@ -71,7 +71,7 @@ namespace Lattice.Delivery
                 Log.Warning($"Client({m_socket.LocalEndPoint}) exception");
                 error?.Invoke(Error.Exception);
             }
-            if (!m_host.Update(Host.Ping))
+            if (!m_host.Update())
             {
                 // hasn't received anything in while so timed out
                 Log.Error($"Client({m_socket.LocalEndPoint}) timeout");
