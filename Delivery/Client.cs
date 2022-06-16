@@ -9,10 +9,11 @@ namespace Lattice.Delivery
     {
         private readonly Host m_host;
 
-        public Client(Mode mode, IPEndPoint remote, Receiving receive, Action<Sync, uint> sync, Action<Error> error) : base(mode)
-        {
-            Log.Debug($"Client({m_socket.LocalEndPoint}) connecting to Server({remote})");
+        public int Local { get; }
+        public int Remote { get; }
 
+        public Client(Mode mode, IPEndPoint remote, Receiving receive, Action<uint, Request> request, Action<Request, uint> acknowledge) : base(mode)
+        {
             m_socket.Connect(remote);
             m_host = new Host(remote.Address, remote.Port, 
                 (Segment segment) =>
@@ -23,28 +24,37 @@ namespace Lattice.Delivery
                 receive,
                 (uint timestamp, ref Reader reader) =>
                 {
-                    Sync type = (Sync)reader.Read();
+                    Request type = (Request)reader.Read();
                     switch (type)
                     {
-                        case Sync.Disconnect:
+                        case Request.Connect:
+                            Log.Warning($"Client({m_socket.LocalEndPoint}) received connect request from Server({remote})");
+                            break;
+                        case Request.Disconnect:
                             Log.Warning($"Client({m_socket.LocalEndPoint}) received diconnect request from Server({remote})");
-                            error?.Invoke(Error.Disconnected);
                             break;
                     }
+                    request?.Invoke(timestamp, type);
                 },
                 (uint delay, ref Reader reader) =>
                 {
-                    Sync type = (Sync)reader.Read();
+                    Request type = (Request)reader.Read();
                     switch (type)
                     {
-                        case Sync.Disconnect:
-                            Log.Warning($"Client({m_socket.LocalEndPoint}) diconnecting from Server({remote})");
+                        case Request.Connect:
+                            Log.Warning($"Client({m_socket.LocalEndPoint}) connected to Server({remote})");
+                            break;
+                        case Request.Disconnect:
+                            Log.Warning($"Client({m_socket.LocalEndPoint}) diconnected from Server({remote})");
                             break;
                     }
-                    sync?.Invoke(type, delay);
+                    acknowledge?.Invoke(type, delay);
                 });
 
             m_host.Connect();
+            Remote = remote.Serialize().GetHashCode();
+            Local = m_socket.LocalEndPoint.Serialize().GetHashCode();
+            Log.Debug($"Client({m_socket.LocalEndPoint}) connecting to Server({remote})");
         }
 
         public void Disconnect()

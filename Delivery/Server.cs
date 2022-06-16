@@ -12,9 +12,13 @@ namespace Lattice.Delivery
         private readonly Queue<int> m_outgoing = new Queue<int>();
         private readonly Dictionary<int, Host> m_hosts = new Dictionary<int, Host>();
 
+        public int Listen { get; }
+
         public Server(int port, Mode mode) : base(mode)
         {
-            m_socket.Bind(m_listen = Any(port, mode));
+            m_listen = Any(port, mode);
+            m_socket.Bind(m_listen);
+            Listen = m_listen.Serialize().GetHashCode();
             Log.Debug($"Server({m_socket.LocalEndPoint}): Listening");
         }
 
@@ -38,13 +42,13 @@ namespace Lattice.Delivery
             return false;
         }
 
-        public void Update(ReceivingFrom receive, Action<int, Sync, uint> sync, Action<int, Error> error)
+        public void Update(ReceivingFrom receive, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error)
         {
             EndPoint listen = m_listen.Create(m_listen.Serialize());
             if (!ReceiveFrom(ref listen, 
                 (Segment segment) =>
                 {
-                    Handle(listen, segment, receive, sync, error);
+                    Handle(listen, segment, receive, request, acknowledge);
                 }))
             {
                 Log.Warning($"Server({m_socket.LocalEndPoint}) exception with {listen}");
@@ -67,7 +71,7 @@ namespace Lattice.Delivery
             }
         }
 
-        private void Handle(EndPoint remote, Segment segment, ReceivingFrom receive, Action<int, Sync, uint> sync, Action<int, Error> error)
+        private void Handle(EndPoint remote, Segment segment, ReceivingFrom receive, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge)
         {
             int id = remote.Serialize().GetHashCode();
             if (!m_hosts.ContainsKey(id))
@@ -85,27 +89,33 @@ namespace Lattice.Delivery
                     },
                     (uint timestamp, ref Reader reader) =>
                     {
-                        Sync type = (Sync)reader.Read();
+                        Request type = (Request)reader.Read();
                         switch (type)
                         {
-                        case Sync.Disconnect:
+                            case Request.Connect:
+                                Log.Debug($"Server({m_socket.LocalEndPoint}) received connect request from Client({id}|{remote})");
+                                break;
+                            case Request.Disconnect:
                                 m_outgoing.Enqueue(id);
                                 Log.Debug($"Server({m_socket.LocalEndPoint}) received diconnect request from Client({id}|{remote})");
-                                error?.Invoke(id, Error.Disconnected);
                                 break;
                         }
+                        request?.Invoke(id, timestamp, type);
                     },
                     (uint delay, ref Reader reader) =>
                     {
-                        Sync type = (Sync)reader.Read();
+                        Request type = (Request)reader.Read();
                         switch (type)
                         {
-                            case Sync.Disconnect:
+                            case Request.Connect:
+                                Log.Debug($"Server({m_socket.LocalEndPoint}) connecting to Client({id}|{remote})");
+                                break;
+                            case Request.Disconnect:
                                 m_outgoing.Enqueue(id);
                                 Log.Debug($"Server({m_socket.LocalEndPoint}) disconnecting from Client({id}|{remote})");
                                 break;
                         }
-                        sync?.Invoke(id, type, delay);
+                        acknowledge?.Invoke(id, type, delay);
                     }
                     );
                 host.Connect();

@@ -4,7 +4,6 @@
     {
         None,
         Timeout,
-        Exception,
-        Disconnected
+        Exception
     }
 }

@@ -1,6 +1,6 @@
 ﻿namespace Lattice.Delivery
 {
-    public enum Sync : byte
+    public enum Request : byte
     {
         None,
         Ping,

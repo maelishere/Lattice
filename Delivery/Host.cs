@@ -7,7 +7,7 @@ namespace Lattice.Delivery
     using Bolt;
     using Transmission;
 
-    public sealed class Host
+    internal sealed class Host
     {
         public Address address { get; }
         internal Connection connection { get; }
@@ -32,17 +32,17 @@ namespace Lattice.Delivery
 
         private static void Ping(ref Writer writer)
         {
-            writer.Write((byte)Sync.Ping);
+            writer.Write((byte)Request.Ping);
         }
 
         private static void Connect(ref Writer writer)
         {
-            writer.Write((byte)Sync.Connect);
+            writer.Write((byte)Request.Connect);
         }
 
         private static void Disconnect(ref Writer writer)
         {
-            writer.Write((byte)Sync.Disconnect);
+            writer.Write((byte)Request.Disconnect);
         }
     }
 }
