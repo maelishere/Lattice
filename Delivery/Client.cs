@@ -15,6 +15,10 @@ namespace Lattice.Delivery
         public Client(Mode mode, IPEndPoint remote, Receiving receive, Action<uint, Request> request, Action<Request, uint> acknowledge) : base(mode)
         {
             m_socket.Connect(remote);
+            Remote = remote.Port;
+            // Remote = remote.Serialize().GetHashCode();
+            Local = m_socket.LocalEndPoint.Serialize().GetHashCode();
+
             m_host = new Host(remote.Address, remote.Port, 
                 (Segment segment) =>
                 {
@@ -28,10 +32,10 @@ namespace Lattice.Delivery
                     switch (type)
                     {
                         case Request.Connect:
-                            Log.Warning($"Client({m_socket.LocalEndPoint}) received connect request from Server({remote})");
+                            Log.Warning($"Client({Local}) received connect request from Server({Remote})");
                             break;
                         case Request.Disconnect:
-                            Log.Warning($"Client({m_socket.LocalEndPoint}) received diconnect request from Server({remote})");
+                            Log.Warning($"Client({Local}) received diconnect request from Server({Remote})");
                             break;
                     }
                     request?.Invoke(timestamp, type);
@@ -42,19 +46,17 @@ namespace Lattice.Delivery
                     switch (type)
                     {
                         case Request.Connect:
-                            Log.Warning($"Client({m_socket.LocalEndPoint}) connected to Server({remote})");
+                            Log.Warning($"Client({Local}) connected to Server({Remote})");
                             break;
                         case Request.Disconnect:
-                            Log.Warning($"Client({m_socket.LocalEndPoint}) diconnected from Server({remote})");
+                            Log.Warning($"Client({Local}) diconnected from Server({Remote})");
                             break;
                     }
                     acknowledge?.Invoke(type, delay);
                 });
 
             m_host.Connect();
-            Remote = remote.Serialize().GetHashCode();
-            Local = m_socket.LocalEndPoint.Serialize().GetHashCode();
-            Log.Debug($"Client({m_socket.LocalEndPoint}) connecting to Server({remote})");
+            Log.Debug($"Client({Local}) connecting to Server({Remote})");
         }
 
         public void Disconnect()
@@ -78,13 +80,13 @@ namespace Lattice.Delivery
                 }))
             {
                 // hasn't received anything in while so timed out
-                Log.Warning($"Client({m_socket.LocalEndPoint}) exception");
+                Log.Warning($"Client({Local}) exception");
                 error?.Invoke(Error.Exception);
             }
             if (!m_host.Update())
             {
                 // hasn't received anything in while so timed out
-                Log.Error($"Client({m_socket.LocalEndPoint}) timeout");
+                Log.Error($"Client({Local}) timeout");
                 error?.Invoke(Error.Timeout);
             }
         }

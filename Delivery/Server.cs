@@ -16,10 +16,11 @@ namespace Lattice.Delivery
 
         public Server(int port, Mode mode) : base(mode)
         {
+            Listen = port;
             m_listen = Any(port, mode);
             m_socket.Bind(m_listen);
-            Listen = m_listen.Serialize().GetHashCode();
-            Log.Debug($"Server({m_socket.LocalEndPoint}): Listening");
+            // Listen = m_listen.Serialize().GetHashCode();
+            Log.Debug($"Server({Listen}): Listening");
         }
 
         public bool Disconnect(int connection)
@@ -51,7 +52,7 @@ namespace Lattice.Delivery
                     Handle(listen, segment, receive, request, acknowledge, error);
                 }))
             {
-                Log.Warning($"Server({m_socket.LocalEndPoint}) exception with {listen}");
+                Log.Warning($"Server({Listen}) exception with {listen.Serialize().GetHashCode()}");
                 error?.Invoke(0, Error.Exception);
             }
 
@@ -59,7 +60,7 @@ namespace Lattice.Delivery
             {
                 if (!endpoint.Value.Update())
                 {
-                    Log.Warning($"Server({m_socket.LocalEndPoint}) timed out from Client({endpoint.Key}|{endpoint.Value.address})");
+                    Log.Warning($"Server({Listen}) timed out from Client({endpoint.Key})");
                     error?.Invoke(endpoint.Key, Error.Timeout);
                     m_outgoing.Enqueue(endpoint.Key);
                 }
@@ -96,11 +97,11 @@ namespace Lattice.Delivery
                         switch (type)
                         {
                             case Request.Connect:
-                                Log.Debug($"Server({m_socket.LocalEndPoint}) received connect request from Client({id}|{remote})");
+                                Log.Debug($"Server({Listen}) received connect request from Client({id})");
                                 break;
                             case Request.Disconnect:
                                 m_outgoing.Enqueue(id);
-                                Log.Debug($"Server({m_socket.LocalEndPoint}) received diconnect request from Client({id}|{remote})");
+                                Log.Debug($"Server({Listen}) received diconnect request from Client({id})");
                                 break;
                         }
                         request?.Invoke(id, timestamp, type);
@@ -111,11 +112,11 @@ namespace Lattice.Delivery
                         switch (type)
                         {
                             case Request.Connect:
-                                Log.Debug($"Server({m_socket.LocalEndPoint}) connecting to Client({id}|{remote})");
+                                Log.Debug($"Server({Listen}) connecting to Client({id})");
                                 break;
                             case Request.Disconnect:
                                 m_outgoing.Enqueue(id);
-                                Log.Debug($"Server({m_socket.LocalEndPoint}) disconnecting from Client({id}|{remote})");
+                                Log.Debug($"Server({Listen}) disconnecting from Client({id})");
                                 break;
                         }
                         acknowledge?.Invoke(id, type, delay);
@@ -123,7 +124,7 @@ namespace Lattice.Delivery
                     );
                 host.Connect();
                 m_hosts.Add(id, host);
-                Log.Debug($"Server({m_socket.LocalEndPoint}) connected to Client({id}|{remote})");
+                Log.Debug($"Server({Listen}) connected to Client({id})");
             }
             Reader reading = new Reader(segment);
             m_hosts[id].Input(ref reading);
