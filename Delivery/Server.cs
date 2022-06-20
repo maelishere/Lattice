@@ -34,7 +34,7 @@ namespace Lattice.Delivery
 
         public bool Send(int connection, Channel channel, Write callback)
         {
-            if (m_hosts.TryGetValue(connection, out Host host))
+            if (m_hosts.TryGetValue(connection, out Host host) && !m_outgoing.Contains(connection))
             {
                 host.Output(channel, callback);
                 return true;
@@ -45,10 +45,10 @@ namespace Lattice.Delivery
         public void Update(ReceivingFrom receive, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error)
         {
             EndPoint listen = m_listen.Create(m_listen.Serialize());
-            if (!ReceiveFrom(ref listen, 
+            if (!ReceiveFrom(ref listen,
                 (Segment segment) =>
                 {
-                    Handle(listen, segment, receive, request, acknowledge);
+                    Handle(listen, segment, receive, request, acknowledge, error);
                 }))
             {
                 Log.Warning($"Server({m_socket.LocalEndPoint}) exception with {listen}");
@@ -71,7 +71,7 @@ namespace Lattice.Delivery
             }
         }
 
-        private void Handle(EndPoint remote, Segment segment, ReceivingFrom receive, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge)
+        private void Handle(EndPoint remote, Segment segment, ReceivingFrom receive, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error)
         {
             int id = remote.Serialize().GetHashCode();
             if (!m_hosts.ContainsKey(id))
@@ -81,7 +81,10 @@ namespace Lattice.Delivery
                     (Segment other) =>
                     {
                         EndPoint casted = m_hosts[id].address;
-                        SendTo(other, casted);
+                        if (!SendTo(other, casted))
+                        {
+                            error?.Invoke(id, Error.Timeout);
+                        }
                     },
                     (uint timestamp, ref Reader reader) =>
                     {

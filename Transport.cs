@@ -35,9 +35,19 @@ namespace Lattice
             m_socket.Close();
         }
 
-        protected void SendTo(Segment segment, EndPoint remote)
+        protected bool SendTo(Segment segment, EndPoint remote)
         {
-            m_socket.SendTo(segment.ToArray(), remote);
+            try
+            {
+                m_socket.SendTo(segment.ToArray(), remote);
+                return true;
+            }
+            catch (Exception e)
+            {
+                Log.Error($"{e.GetType()} {e.Message}");
+                /*Log.Debug(e.StackTrace);*/
+            }
+            return false;
         }
 
         protected bool ReceiveFrom(ref EndPoint remote, Action<Segment> callback)
