@@ -33,6 +33,14 @@ namespace Lattice.Delivery
             return false;
         }
 
+        public void Send(Channel channel, Write callback)
+        {
+            foreach (var endpoint in m_hosts)
+            {
+                endpoint.Value.Output(channel, callback);
+            }
+        }
+
         public bool Send(int connection, Channel channel, Write callback)
         {
             if (m_hosts.TryGetValue(connection, out Host host) && !m_outgoing.Contains(connection))
@@ -41,6 +49,17 @@ namespace Lattice.Delivery
                 return true;
             }
             return false;
+        }
+
+        public void Send(Func<int, bool> predicate, Channel channel, Write callback)
+        {
+            foreach (var endpoint in m_hosts)
+            {
+                if (predicate(endpoint.Key))
+                {
+                    endpoint.Value.Output(channel, callback);
+                }
+            }
         }
 
         public void Update(ReceivingFrom receive, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error)
