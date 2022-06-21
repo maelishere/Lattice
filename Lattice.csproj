@@ -8,7 +8,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Bolt\Bolt.csproj" />
-    <ProjectReference Include="..\Snare\Snare.csproj" />
   </ItemGroup>
 
 </Project>
