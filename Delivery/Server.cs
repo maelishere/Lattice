@@ -103,7 +103,7 @@ namespace Lattice.Delivery
                         EndPoint casted = m_hosts[id].address;
                         if (!SendTo(other, casted))
                         {
-                            error?.Invoke(id, Error.Timeout);
+                            error?.Invoke(id, Error.Exception);
                         }
                     },
                     (uint timestamp, ref Reader reader) =>
