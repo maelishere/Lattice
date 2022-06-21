@@ -1,5 +1,5 @@
 # Lattice
-C# UDP Networking Library for games
+C# UDP Networking Library
 
 Low Level API
 
