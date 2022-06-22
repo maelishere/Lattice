@@ -7,11 +7,10 @@ namespace Lattice.Delivery.Transmission
 
     public sealed class Connection
     {
-        const int MTU = 1024;
+        const int SMTU = 512;
+        const int LMTU = 1024;
         const int INTERVAL = 1000; // 1 sec
         const int TIMEOUT = 10000; // 10 secs
-
-        private Writer m_buffer;
 
         private Bit m_status;
         private Module m_direct;
@@ -23,15 +22,13 @@ namespace Lattice.Delivery.Transmission
 
         internal Connection(Action<Segment> send, Receiving receive, Receiving signal, Receiving acknowledge)
         {
-            m_buffer = new Writer(MTU);
-
             m_status = new Bit(send, signal, acknowledge, 
                 (Write callback)=>
                 {
-                    m_buffer.Reset();
-                    m_buffer.Write(Channel.None);
-                    callback(ref m_buffer);
-                    return m_buffer.ToSegment();
+                    Writer buffer = new Writer(SMTU);
+                    buffer.Write(Channel.None);
+                    callback(ref buffer);
+                    return buffer.ToSegment();
                 });
 
             m_direct = new Module(send, receive, null);
@@ -39,19 +36,19 @@ namespace Lattice.Delivery.Transmission
             m_irregular = new Window(send, receive,
                 (Write callback) =>
                 {
-                    m_buffer.Reset();
-                    m_buffer.Write(Channel.Irregular);
-                    callback(ref m_buffer);
-                    return m_buffer.ToSegment();
+                    Writer buffer = new Writer(SMTU);
+                    buffer.Write(Channel.Irregular);
+                    callback(ref buffer);
+                    return buffer.ToSegment();
                 });
 
             m_orderded = new Lancet(send, receive,
                 (Write callback) =>
                 {
-                    m_buffer.Reset();
-                    m_buffer.Write(Channel.Ordered);
-                    callback(ref m_buffer);
-                    return m_buffer.ToSegment();
+                    Writer buffer = new Writer(SMTU);
+                    buffer.Write(Channel.Ordered);
+                    callback(ref buffer);
+                    return buffer.ToSegment();
                 });
         }
 
@@ -59,9 +56,9 @@ namespace Lattice.Delivery.Transmission
         {
             if (!m_status.Sending || !wait)
             {
-                m_buffer.Reset();
-                m_buffer.Write(Channel.None);
-                m_status.Output(time, ref m_buffer, callback);
+                Writer buffer = new Writer(SMTU);
+                buffer.Write(Channel.None);
+                m_status.Output(time, ref buffer, callback);
                 return true;
             }
             return false;
@@ -96,20 +93,20 @@ namespace Lattice.Delivery.Transmission
 
         public void Output(uint time, Channel channel, Write callback)
         {
-            m_buffer.Reset();
-            m_buffer.Write(channel);
+            Writer buffer = new Writer(LMTU);
+            buffer.Write(channel);
             switch (channel)
             {
                 case Channel.Direct:
-                    m_direct.Output(time, ref m_buffer, callback);
+                    m_direct.Output(time, ref buffer, callback);
                     break;
 
                 case Channel.Irregular:
-                    m_irregular.Output(time, ref m_buffer, callback);
+                    m_irregular.Output(time, ref buffer, callback);
                     break;
 
                 case Channel.Ordered:
-                    m_orderded.Output(time, ref m_buffer, callback);
+                    m_orderded.Output(time, ref buffer, callback);
                     break;
 
                 default:
@@ -132,6 +129,7 @@ namespace Lattice.Delivery.Transmission
             m_status.Update(time);
             m_orderded.Update(time);
             m_irregular.Update(time);
+            m_direct.Update(time);
 
             // if receive hasn't been called in a while it will timeout
             if (time > m_recieved + TIMEOUT)
