@@ -12,7 +12,7 @@ namespace Lattice.Delivery
         public int Local { get; }
         public int Remote { get; }
 
-        public Client(Mode mode, IPEndPoint remote, Receiving receive, Action<uint, Request> request, Action<Request, uint> acknowledge) : base(mode)
+        public Client(Mode mode, IPEndPoint remote, Receiving receive, Action<uint, Request> request, Action<Request, uint> acknowledge, Action<Error> error) : base(mode)
         {
             m_socket.Connect(remote);
             Remote = remote.Port;
@@ -23,7 +23,10 @@ namespace Lattice.Delivery
                 (Segment segment) =>
                 {
                     EndPoint casted = m_host.address;
-                    SendTo(segment, casted);
+                    if (!SendTo(segment, casted))
+                    {
+                        error?.Invoke(Error.Send);
+                    }
                 }, 
                 receive,
                 (uint timestamp, ref Reader reader) =>
@@ -59,17 +62,20 @@ namespace Lattice.Delivery
             Log.Debug($"Client({Local}) connecting to Server({Remote})");
         }
 
+        // send a push to server, wait for ack or timeout
         public void Disconnect()
         {
             m_host.Disconnect();
         }
 
+        // sends data to server
         public void Send(Channel channel, Write callback)
         {
             m_host.Output(channel, callback);
         }
 
-        public void Update(Action<Error> error)
+        /// receive from socket
+        public void Tick(Action<Error> error)
         {
             EndPoint remote = m_host.address;
             if (!ReceiveFrom(ref remote,
@@ -81,8 +87,13 @@ namespace Lattice.Delivery
             {
                 // hasn't received anything in while so timed out
                 Log.Warning($"Client({Local}) exception");
-                error?.Invoke(Error.Exception);
+                error?.Invoke(Error.Recieve);
             }
+        }
+
+        /// update connection and/or send packets
+        public void Update(Action<Error> error)
+        {
             if (!m_host.Update())
             {
                 // hasn't received anything in while so timed out

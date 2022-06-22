@@ -57,7 +57,7 @@ namespace Lattice.Delivery.Transmission
 
         public bool Signal(uint time, bool wait, Write callback)
         {
-            if (!m_status.Sending && wait)
+            if (!m_status.Sending || !wait)
             {
                 m_buffer.Reset();
                 m_buffer.Write(Channel.None);

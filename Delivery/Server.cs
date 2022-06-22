@@ -62,7 +62,8 @@ namespace Lattice.Delivery
             }
         }
 
-        public void Update(ReceivingFrom receive, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error)
+        // receive data from listen endpoint
+        public void Tick(ReceivingFrom receive, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error)
         {
             EndPoint listen = m_listen.Create(m_listen.Serialize());
             if (!ReceiveFrom(ref listen,
@@ -72,9 +73,13 @@ namespace Lattice.Delivery
                 }))
             {
                 Log.Warning($"Server({Listen}) exception with {listen.Serialize().GetHashCode()}");
-                error?.Invoke(0, Error.Exception);
+                error?.Invoke(0, Error.Recieve);
             }
+        }
 
+        /// update connections and/or send packets
+        public void Update(Action<int, Error> error)
+        {
             foreach (var endpoint in m_hosts)
             {
                 if (!endpoint.Value.Update())
@@ -103,7 +108,7 @@ namespace Lattice.Delivery
                         EndPoint casted = m_hosts[id].address;
                         if (!SendTo(other, casted))
                         {
-                            error?.Invoke(id, Error.Exception);
+                            error?.Invoke(id, Error.Send);
                         }
                     },
                     (uint timestamp, ref Reader reader) =>

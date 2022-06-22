@@ -3,7 +3,8 @@
     public enum Error : byte
     {
         None,
-        Timeout,
-        Exception
+        Send,
+        Recieve,
+        Timeout
     }
 }
