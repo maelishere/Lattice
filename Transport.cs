@@ -29,11 +29,10 @@ namespace Lattice
             }
         }
 
-        public void Close()
+        /*public void Close()
         {
-            m_socket.Shutdown(SocketShutdown.Both);
             m_socket.Close();
-        }
+        }*/
 
         protected bool SendTo(Segment segment, EndPoint remote)
         {
