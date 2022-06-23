@@ -31,6 +31,7 @@ namespace Lattice
 
         public void Close()
         {
+            m_socket.Shutdown(SocketShutdown.Both);
             m_socket.Close();
         }
 
