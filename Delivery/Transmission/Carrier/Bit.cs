@@ -9,7 +9,8 @@ namespace Lattice.Delivery.Transmission.Carrier
         const int RESEND = 300;
 
         private Frame m_frame;
-        private byte m_serial, m_last;
+        private byte m_serial;
+        private int m_last;
 
         public bool Sending => m_frame.Data.HasValue;
         private Receiving acknowledge { get; }
@@ -17,9 +18,9 @@ namespace Lattice.Delivery.Transmission.Carrier
         internal Bit(Action<Segment> send, Receiving receive, Receiving acknowledge, Responding response) : base(send, receive, response)
         {
             this.acknowledge = acknowledge; 
-            m_last = byte.MaxValue;
             m_frame = new Frame();
             m_frame.Reset();
+            m_last = -1;
         }
 
         public override void Input(uint time, ref Reader reader)
@@ -29,7 +30,7 @@ namespace Lattice.Delivery.Transmission.Carrier
             {
                 case Command.Push:
                     {
-                        Segment segment = reader.Cut(0, reader.Length - reader.Current);
+                        Segment segment = reader.Peek(reader.Length - reader.Current);
                         send(response(
                             (ref Writer writer) =>
                             {

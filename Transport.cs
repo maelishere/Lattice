@@ -29,7 +29,6 @@ namespace Lattice
             }
         }
 
-
         public void Close()
         {
             m_socket.Close();

@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 
 namespace Lattice.Delivery.Transmission.Carrier
 {
@@ -25,7 +25,7 @@ namespace Lattice.Delivery.Transmission.Carrier
         private Frame[] m_sending;
         private Prompt?[] m_received;
         private Mask m_local, m_remote;
-        private Queue<Segment>[] m_waiting;
+        private ConcurrentQueue<Segment>[] m_waiting;
 
         private byte m_here /*local marker*/, m_there /*remote marker*/, m_next/*queue order sequencer*/;
 
@@ -33,10 +33,10 @@ namespace Lattice.Delivery.Transmission.Carrier
         {
             m_sending = new Frame[SIZE];
             m_received = new Prompt?[SIZE];
-            m_waiting = new Queue<Segment>[SIZE];
+            m_waiting = new ConcurrentQueue<Segment>[SIZE];
             for (int i = 0; i < SIZE; i++)
             {
-                m_waiting[i] = new Queue<Segment>();
+                m_waiting[i] = new ConcurrentQueue<Segment>();
             }
         }
 
@@ -125,9 +125,16 @@ namespace Lattice.Delivery.Transmission.Carrier
                 }
                 else if (Within(i, m_there, 8) && m_waiting[i].Count > 0)
                 {
-                    m_sending[i].Reset();
-                    m_sending[i].Data = m_waiting[i].Dequeue();
-                    /*Log.Debug($"Sending Frame {i}");*/
+                    do
+                    {
+                        if (m_waiting[i].TryDequeue(out Segment segment))
+                        {
+                            m_sending[i].Reset();
+                            m_sending[i].Data = segment;
+                            /*Log.Debug($"Sending Frame {i}");*/
+                        }
+                    }
+                    while (!m_sending[i].Data.HasValue);
                 }
 
                 if (i == m_here && m_received[i].HasValue)

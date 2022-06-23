@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 
 
 namespace Lattice.Delivery.Transmission.Carrier
@@ -12,15 +12,15 @@ namespace Lattice.Delivery.Transmission.Carrier
         const int RESEND = 400;
 
         private Frame[] m_frames;
-        private Queue<Segment>[] m_waiting;
+        private ConcurrentQueue<Segment>[] m_waiting;
 
         internal Window(Action<Segment> send, Receiving receive, Responding response) : base(send, receive, response)
         {
             m_frames = new Frame[SIZE];
-            m_waiting = new Queue<Segment>[SIZE];
+            m_waiting = new ConcurrentQueue<Segment>[SIZE];
             for (int i = 0; i < SIZE; i++)
             {
-                m_waiting[i] = new Queue<Segment>();
+                m_waiting[i] = new ConcurrentQueue<Segment>();
             }
         }
 
@@ -124,9 +124,16 @@ namespace Lattice.Delivery.Transmission.Carrier
                 }
                 else if (count > 0) // we need to make sure remote has released the frame
                 {
-                    m_frames[i].Reset();
-                    m_frames[i].Data = m_waiting[i].Dequeue();
-                    /*Log.Debug($"Sending Frame {i}");*/
+                    do
+                    {
+                        if (m_waiting[i].TryDequeue(out Segment segment))
+                        {
+                            m_frames[i].Reset();
+                            m_frames[i].Data = segment;
+                            /*Log.Debug($"Sending Frame {i}");*/
+                        }
+                    }
+                    while (!m_frames[i].Data.HasValue);
                 }
             }
         }

@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Net;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 
 namespace Lattice.Delivery
 {
@@ -9,8 +9,8 @@ namespace Lattice.Delivery
     public class Server : Transport
     {
         private readonly EndPoint m_listen;
-        private readonly Queue<int> m_outgoing = new Queue<int>();
-        private readonly Dictionary<int, Host> m_hosts = new Dictionary<int, Host>();
+        private readonly ConcurrentQueue<int> m_disconnecting = new ConcurrentQueue<int>();
+        private readonly ConcurrentDictionary<int, Host> m_hosts = new ConcurrentDictionary<int, Host>();
 
         public int Listen { get; }
 
@@ -43,7 +43,7 @@ namespace Lattice.Delivery
 
         public bool Send(int connection, Channel channel, Write callback)
         {
-            if (m_hosts.TryGetValue(connection, out Host host) && !m_outgoing.Contains(connection))
+            if (m_hosts.TryGetValue(connection, out Host host))
             {
                 host.Output(channel, callback);
                 return true;
@@ -72,8 +72,9 @@ namespace Lattice.Delivery
                     Handle(listen, segment, receive, request, acknowledge, error);
                 }))
             {
-                Log.Warning($"Server({Listen}) exception with {listen.Serialize().GetHashCode()}");
-                error?.Invoke(0, Error.Recieve);
+                int id = listen.Serialize().GetHashCode();
+                Log.Warning($"Server({Listen}): receive exception with Endpoint({id})");
+                error?.Invoke(id, Error.Recieve);
             }
         }
 
@@ -84,15 +85,22 @@ namespace Lattice.Delivery
             {
                 if (!endpoint.Value.Update())
                 {
-                    Log.Warning($"Server({Listen}) timed out from Client({endpoint.Key})");
+                    Log.Warning($"Server({Listen}): timed out from Client({endpoint.Key})");
                     error?.Invoke(endpoint.Key, Error.Timeout);
-                    m_outgoing.Enqueue(endpoint.Key);
+                    m_disconnecting.Enqueue(endpoint.Key);
                 }
             }
 
-            while (m_outgoing.Count > 0)
+            while (m_disconnecting.Count > 0)
             {
-                m_hosts.Remove(m_outgoing.Dequeue());
+                if (m_disconnecting.TryDequeue(out int connection))
+                {
+                    // keep trying to add incase another thread is adding (Tick() -> Handle())
+                    while (m_hosts.ContainsKey(connection))
+                    {
+                        m_hosts.TryRemove(connection, out Host _);
+                    }
+                }
             }
         }
 
@@ -108,6 +116,7 @@ namespace Lattice.Delivery
                         EndPoint casted = m_hosts[id].address;
                         if (!SendTo(other, casted))
                         {
+                            Log.Warning($"Server({Listen}): send exception with Client({id})");
                             error?.Invoke(id, Error.Send);
                         }
                     },
@@ -121,11 +130,11 @@ namespace Lattice.Delivery
                         switch (type)
                         {
                             case Request.Connect:
-                                Log.Debug($"Server({Listen}) received connect request from Client({id})");
+                                Log.Debug($"Server({Listen}): Client({id}) testing connection");
                                 break;
                             case Request.Disconnect:
-                                m_outgoing.Enqueue(id);
-                                Log.Debug($"Server({Listen}) received diconnect request from Client({id})");
+                                Log.Debug($"Server({Listen}): Client({id}) wants to disconnect");
+                                Disconnect(id);
                                 break;
                         }
                         request?.Invoke(id, timestamp, type);
@@ -136,19 +145,23 @@ namespace Lattice.Delivery
                         switch (type)
                         {
                             case Request.Connect:
-                                Log.Debug($"Server({Listen}) connecting to Client({id})");
+                                Log.Debug($"Server({Listen}): connected to Client({id})");
                                 break;
                             case Request.Disconnect:
-                                m_outgoing.Enqueue(id);
-                                Log.Debug($"Server({Listen}) disconnecting from Client({id})");
+                                Log.Debug($"Server({Listen}): disconnected from Client({id})");
+                                m_disconnecting.Enqueue(id);
                                 break;
                         }
                         acknowledge?.Invoke(id, type, delay);
                     }
                     );
                 host.Connect();
-                m_hosts.Add(id, host);
-                Log.Debug($"Server({Listen}) connected to Client({id})");
+                // keep trying to add incase another thread is removing (Update())
+                while (!m_hosts.ContainsKey(id))
+                {
+                    m_hosts.TryAdd(id, host);
+                }
+                Log.Debug($"Server({Listen}): connecting to Client({id})");
             }
             Reader reading = new Reader(segment);
             m_hosts[id].Input(ref reading);

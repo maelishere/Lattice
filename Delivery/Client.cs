@@ -25,6 +25,7 @@ namespace Lattice.Delivery
                     EndPoint casted = m_host.address;
                     if (!SendTo(segment, casted))
                     {
+                        Log.Warning($"Client({Local}): send exception");
                         error?.Invoke(Error.Send);
                     }
                 }, 
@@ -35,10 +36,10 @@ namespace Lattice.Delivery
                     switch (type)
                     {
                         case Request.Connect:
-                            Log.Warning($"Client({Local}) received connect request from Server({Remote})");
+                            Log.Warning($" Client({Local}): Server({Remote}) testing connection");
                             break;
                         case Request.Disconnect:
-                            Log.Warning($"Client({Local}) received diconnect request from Server({Remote})");
+                            Log.Warning($"Client({Local}): Server({Remote}) wants to disconnect");
                             break;
                     }
                     request?.Invoke(timestamp, type);
@@ -49,17 +50,17 @@ namespace Lattice.Delivery
                     switch (type)
                     {
                         case Request.Connect:
-                            Log.Warning($"Client({Local}) connected to Server({Remote})");
+                            Log.Warning($"Client({Local}): connected to Server({Remote})");
                             break;
                         case Request.Disconnect:
-                            Log.Warning($"Client({Local}) diconnected from Server({Remote})");
+                            Log.Warning($"Client({Local}): diconnected from Server({Remote})");
                             break;
                     }
                     acknowledge?.Invoke(type, delay);
                 });
 
             m_host.Connect();
-            Log.Debug($"Client({Local}) connecting to Server({Remote})");
+            Log.Debug($"Client({Local}): connecting to Server({Remote})");
         }
 
         // send a push to server, wait for ack or timeout
@@ -86,7 +87,7 @@ namespace Lattice.Delivery
                 }))
             {
                 // hasn't received anything in while so timed out
-                Log.Warning($"Client({Local}) exception");
+                Log.Warning($"Client({Local}): receive exception");
                 error?.Invoke(Error.Recieve);
             }
         }
@@ -97,7 +98,7 @@ namespace Lattice.Delivery
             if (!m_host.Update())
             {
                 // hasn't received anything in while so timed out
-                Log.Error($"Client({Local}) timeout");
+                Log.Error($"Client({Local}): timeout");
                 error?.Invoke(Error.Timeout);
             }
         }

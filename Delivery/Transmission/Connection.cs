@@ -52,13 +52,13 @@ namespace Lattice.Delivery.Transmission
                 });
         }
 
-        public bool Signal(uint time, bool wait, Write callback)
+        public bool Signal(uint time, bool wait, Write request)
         {
-            if (!m_status.Sending || !wait)
+            if (!wait || !m_status.Sending)
             {
                 Writer buffer = new Writer(SMTU);
                 buffer.Write(Channel.None);
-                m_status.Output(time, ref buffer, callback);
+                m_status.Output(time, ref buffer, request);
                 return true;
             }
             return false;
@@ -114,13 +114,13 @@ namespace Lattice.Delivery.Transmission
             }
         }
 
-        public bool Update(uint time, Write callback)
+        public bool Update(bool recurrent, uint time, Write ping)
         {
             // sends a ping every interval given it has received the last ping
-            if (time > m_shaked + INTERVAL)
+            if (recurrent && time > m_shaked + INTERVAL)
             {
                 // Send Ping
-                if (Signal(time, true, callback))
+                if (Signal(time, true, ping))
                 {
                     m_shaked = time;
                 }
