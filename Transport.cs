@@ -42,7 +42,7 @@ namespace Lattice
             }
             catch (SocketException e)
             {
-                Log.Error($"{e.GetType()} {e.Message}");
+                /*Log.Error($"{e.GetType()} {e.Message}");*/
                 /*Log.Debug(e.StackTrace);*/
                 return false;
             }
@@ -61,7 +61,7 @@ namespace Lattice
                 }
                 catch (SocketException e)
                 {
-                    Log.Error($"{e.GetType()} {e.Message}");
+                    /*Log.Error($"{e.GetType()} {e.Message}");*/
                     /*Log.Debug(e.StackTrace);*/
                     return false;
                 }

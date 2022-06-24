@@ -55,6 +55,7 @@ namespace Lattice.Delivery
                             break;
                         case Request.Disconnect:
                             Log.Warning($"Client({Local}): diconnected from Server({Remote})");
+                            m_socket.Shutdown(SocketShutdown.Both);
                             break;
                     }
                     acknowledge?.Invoke(type, delay);
