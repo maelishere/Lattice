@@ -26,7 +26,7 @@ namespace Lattice.Delivery
                     EndPoint casted = m_host.address;
                     if (!SendTo(segment, casted))
                     {
-                        Log.Warning($"Client({Local}): send exception");
+                        Log.Debug($"Client({Local}): send exception");
                         error?.Invoke(Error.Send);
                     }
                 }, 
@@ -37,10 +37,10 @@ namespace Lattice.Delivery
                     switch (type)
                     {
                         case Request.Connect:
-                            Log.Warning($" Client({Local}): Server({Remote}) testing connection");
+                            Log.Debug($" Client({Local}): Server({Remote}) testing connection");
                             break;
                         case Request.Disconnect:
-                            Log.Warning($"Client({Local}): Server({Remote}) wants to disconnect");
+                            Log.Debug($"Client({Local}): Server({Remote}) wants to disconnect");
                             break;
                     }
                     request?.Invoke(timestamp, type);
@@ -51,10 +51,10 @@ namespace Lattice.Delivery
                     switch (type)
                     {
                         case Request.Connect:
-                            Log.Warning($"Client({Local}): connected to Server({Remote})");
+                            Log.Debug($"Client({Local}): connected to Server({Remote})");
                             break;
                         case Request.Disconnect:
-                            Log.Warning($"Client({Local}): diconnected from Server({Remote})");
+                            Log.Debug($"Client({Local}): diconnected from Server({Remote})");
                             m_socket.Shutdown(SocketShutdown.Both);
                             break;
                     }

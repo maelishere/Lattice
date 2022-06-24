@@ -85,7 +85,7 @@ namespace Lattice.Delivery
             {
                 if (!endpoint.Value.Update())
                 {
-                    Log.Warning($"Server({Listen}): timed out from Client({endpoint.Key})");
+                    Log.Error($"Server({Listen}): timed out from Client({endpoint.Key})");
                     error?.Invoke(endpoint.Key, Error.Timeout);
                     m_disconnecting.Enqueue(endpoint.Key);
                 }
