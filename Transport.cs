@@ -40,7 +40,7 @@ namespace Lattice
             {
                 m_socket.SendTo(segment.ToArray(), remote);
             }
-            catch (SocketException e)
+            catch (SocketException)
             {
                 /*Log.Error($"{e.GetType()} {e.Message}");*/
                 /*Log.Debug(e.StackTrace);*/
@@ -59,7 +59,7 @@ namespace Lattice
                     int size = m_socket.ReceiveFrom(buffer, ref remote);
                     callback?.Invoke(new Segment(buffer, 0, size));
                 }
-                catch (SocketException e)
+                catch (SocketException)
                 {
                     /*Log.Error($"{e.GetType()} {e.Message}");*/
                     /*Log.Debug(e.StackTrace);*/
