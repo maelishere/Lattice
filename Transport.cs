@@ -51,20 +51,20 @@ namespace Lattice
 
         protected bool ReceiveFrom(ref EndPoint remote, Action<Segment> callback)
         {
-            while (m_socket.Poll(0, SelectMode.SelectRead))
+            try
             {
-                try
+                while (m_socket.Poll(0, SelectMode.SelectRead))
                 {
                     byte[] buffer = new byte[Buffer.MaxLength];
                     int size = m_socket.ReceiveFrom(buffer, ref remote);
                     callback?.Invoke(new Segment(buffer, 0, size));
                 }
-                catch (Exception)
-                {
-                    /*Log.Error($"{e.GetType()} {e.Message}");*/
-                    /*Log.Debug(e.StackTrace);*/
-                    return false;
-                }
+            }
+            catch (Exception)
+            {
+                /*Log.Error($"{e.GetType()} {e.Message}");*/
+                /*Log.Debug(e.StackTrace);*/
+                return false;
             }
             return true;
         }
