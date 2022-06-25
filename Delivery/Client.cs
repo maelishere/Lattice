@@ -26,7 +26,7 @@ namespace Lattice.Delivery
                     EndPoint casted = m_host.address;
                     if (!SendTo(segment, casted))
                     {
-                        Log.Debug($"Client({Local}): send exception");
+                        /*Log.Debug($"Client({Local}): send exception");*/
                         error?.Invoke(Error.Send);
                     }
                 }, 
@@ -90,7 +90,7 @@ namespace Lattice.Delivery
                 }))
             {
                 // hasn't received anything in while so timed out
-                Log.Warning($"Client({Local}): receive exception");
+                /*Log.Warning($"Client({Local}): receive exception");*/
                 error?.Invoke(Error.Recieve);
             }
         }

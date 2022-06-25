@@ -73,7 +73,7 @@ namespace Lattice.Delivery
                 }))
             {
                 int id = listen.Serialize().GetHashCode();
-                Log.Warning($"Server({Listen}): receive exception with Endpoint({id})");
+                /*Log.Warning($"Server({Listen}): receive exception with Endpoint({id})");*/
                 error?.Invoke(id, Error.Recieve);
             }
         }
@@ -116,7 +116,7 @@ namespace Lattice.Delivery
                         EndPoint casted = m_hosts[id].address;
                         if (!SendTo(other, casted))
                         {
-                            Log.Warning($"Server({Listen}): send exception with Client({id})");
+                            /*Log.Warning($"Server({Listen}): send exception with Client({id})");*/
                             error?.Invoke(id, Error.Send);
                         }
                     },
