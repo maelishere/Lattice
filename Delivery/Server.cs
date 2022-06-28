@@ -63,7 +63,7 @@ namespace Lattice.Delivery
         }
 
         // receive data from listen endpoint
-        public void Recieve(ReceivingFrom received, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error)
+        public void Receive(ReceivingFrom received, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error)
         {
             EndPoint listen = m_listen.Create(m_listen.Serialize());
             if (!ReceiveFrom(ref listen,
