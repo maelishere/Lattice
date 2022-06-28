@@ -63,13 +63,13 @@ namespace Lattice.Delivery
         }
 
         // receive data from listen endpoint
-        public void Tick(ReceivingFrom receive, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error)
+        public void Recieve(ReceivingFrom received, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error)
         {
             EndPoint listen = m_listen.Create(m_listen.Serialize());
             if (!ReceiveFrom(ref listen,
                 (Segment segment) =>
                 {
-                    Handle(listen, segment, receive, request, acknowledge, error);
+                    Handle(listen, segment, received, request, acknowledge, error);
                 }))
             {
                 int id = listen.Serialize().GetHashCode();
@@ -104,7 +104,7 @@ namespace Lattice.Delivery
             }
         }
 
-        private void Handle(EndPoint remote, Segment segment, ReceivingFrom receive, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error)
+        private void Handle(EndPoint remote, Segment segment, ReceivingFrom received, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error)
         {
             int id = remote.Serialize().GetHashCode();
             if (!m_hosts.ContainsKey(id))
@@ -122,7 +122,7 @@ namespace Lattice.Delivery
                     },
                     (uint timestamp, ref Reader reader) =>
                     {
-                        receive?.Invoke(id, timestamp, ref reader);
+                        received?.Invoke(id, timestamp, ref reader);
                     },
                     (uint timestamp, ref Reader reader) =>
                     {

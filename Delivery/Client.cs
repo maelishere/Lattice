@@ -79,7 +79,7 @@ namespace Lattice.Delivery
         }
 
         /// receive from socket
-        public void Tick(Action<Error> error)
+        public void Receive(Action<Error> error)
         {
             EndPoint remote = m_host.address;
             if (!ReceiveFrom(ref remote,

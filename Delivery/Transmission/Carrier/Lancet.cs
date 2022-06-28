@@ -40,6 +40,20 @@ namespace Lattice.Delivery.Transmission.Carrier
             }
         }
 
+        private void Release()
+        {
+            while (m_received[m_here].HasValue)
+            {
+                /*Log.Debug($"Releasing Frame {i}");*/
+                Reader reader = m_received[m_here].Value.reader;
+                receive(m_received[m_here].Value.time, ref reader);
+
+                m_received[m_here] = null;
+                m_local[m_here] = false;
+                m_here = Increment(m_here);
+            }
+        }
+
         public override void Input(uint time, ref Reader reader)
         {
             Header header = reader.ReadHeader();
@@ -92,6 +106,8 @@ namespace Lattice.Delivery.Transmission.Carrier
                                 m_sending[header.serial].Ack.Time = header.time;
                             }
                         }
+
+                        Release();
                     }
                     break;
             }
@@ -110,6 +126,8 @@ namespace Lattice.Delivery.Transmission.Carrier
 
         public override void Update(uint time)
         {
+            Release();
+
             for (byte i = 0; i < SIZE; i++)
             {
                 if (m_sending[i].Data.HasValue)
@@ -135,17 +153,6 @@ namespace Lattice.Delivery.Transmission.Carrier
                         }
                     }
                     while (!m_sending[i].Data.HasValue);
-                }
-
-                if (i == m_here && m_received[i].HasValue)
-                {
-                    /*Log.Debug($"Releasing Frame {i}");*/
-                    Reader reader = m_received[i].Value.reader;
-                    receive(m_received[i].Value.time, ref reader);
-
-                    m_received[i] = null;
-                    m_local[i] = false;
-                    m_here = Increment(m_here);
                 }
             }
         }
