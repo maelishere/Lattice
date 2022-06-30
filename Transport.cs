@@ -38,48 +38,51 @@ namespace Lattice
         {
             try
             {
-                m_socket.SendTo(segment.ToArray(), remote);
+                m_socket.SendTo(segment.Array, segment.Offset, segment.Count, SocketFlags.None, remote);
             }
-            catch (Exception)
+            catch (SocketException e)
             {
-                /*Log.Error($"{e.GetType()} {e.Message}");*/
-                /*Log.Debug(e.StackTrace);*/
+                // for mac os
+                Log.Error($"[{e.SocketErrorCode}] {e.Message}");
                 return false;
             }
             return true;
         }
 
-        protected bool ReceiveFrom(ref EndPoint remote, Action<Segment> callback)
+        protected void ReceiveFrom(ref EndPoint remote, Action<Segment> callback, Action exception)
         {
-            try
+            while (m_socket.Poll(0, SelectMode.SelectRead))
             {
-                while (m_socket.Poll(0, SelectMode.SelectRead))
+                try
                 {
                     byte[] buffer = new byte[Buffer.MaxLength];
-                    int size = m_socket.ReceiveFrom(buffer, ref remote);
+                    int size = m_socket.ReceiveFrom(buffer, 0, buffer.Length, SocketFlags.None, ref remote);
                     callback?.Invoke(new Segment(buffer, 0, size));
                 }
+                catch (SocketException e)
+                {
+                    Log.Error($"[{e.SocketErrorCode}] {e.Message}");
+                    exception?.Invoke();
+                }
             }
-            catch (Exception)
-            {
-                /*Log.Error($"{e.GetType()} {e.Message}");*/
-                /*Log.Debug(e.StackTrace);*/
-                return false;
-            }
-            return true;
         }
 
-        internal static IPEndPoint Any(int port, Mode mode)
+        internal static IPAddress Any(Mode mode)
         {
             switch (mode)
             {
                 case Mode.Dual:
                 case Mode.IPV6:
-                    return new IPEndPoint(IPAddress.IPv6Any, port);
+                    return IPAddress.IPv6Any;
                 case Mode.IPV4:
                 default:
-                    return new IPEndPoint(IPAddress.Any, port);
+                    return IPAddress.Any;
             }
+        }
+
+        internal static IPEndPoint Any(Mode mode, int port)
+        {
+            return new IPEndPoint(Any(mode), port);
         }
     }
 }

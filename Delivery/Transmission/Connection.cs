@@ -7,8 +7,9 @@ namespace Lattice.Delivery.Transmission
 
     public sealed class Connection
     {
-        const int SMTU = 512;
-        const int LMTU = 1024;
+        const int TMTU = 50;
+        const int SMTU = 255;
+        const int DMTU = 1200;
         const int INTERVAL = 1000; // 1 sec
         const int TIMEOUT = 10000; // 10 secs
 
@@ -17,8 +18,8 @@ namespace Lattice.Delivery.Transmission
         private Window m_irregular;
         private Lancet m_orderded;
 
-        private uint m_shaked = 0;
-        private uint m_recieved = 0;
+        private uint m_shaking = 0;
+        private uint m_recieving = TIMEOUT;
 
         internal Connection(Action<Segment> send, Receiving receive, Receiving signal, Receiving acknowledge)
         {
@@ -36,7 +37,7 @@ namespace Lattice.Delivery.Transmission
             m_irregular = new Window(send, receive,
                 (Write callback) =>
                 {
-                    Writer buffer = new Writer(SMTU);
+                    Writer buffer = new Writer(TMTU);
                     buffer.Write(Channel.Irregular);
                     callback(ref buffer);
                     return buffer.ToSegment();
@@ -45,7 +46,7 @@ namespace Lattice.Delivery.Transmission
             m_orderded = new Lancet(send, receive,
                 (Write callback) =>
                 {
-                    Writer buffer = new Writer(SMTU);
+                    Writer buffer = new Writer(TMTU);
                     buffer.Write(Channel.Ordered);
                     callback(ref buffer);
                     return buffer.ToSegment();
@@ -66,7 +67,7 @@ namespace Lattice.Delivery.Transmission
 
         public void Input(uint time, ref Reader reader)
         {
-            m_recieved = time;
+            m_recieving = time + TIMEOUT;
             switch (reader.ReadChannel())
             {
                 case Channel.None:
@@ -93,7 +94,7 @@ namespace Lattice.Delivery.Transmission
 
         public void Output(uint time, Channel channel, Write callback)
         {
-            Writer buffer = new Writer(LMTU);
+            Writer buffer = new Writer(DMTU);
             buffer.Write(channel);
             switch (channel)
             {
@@ -117,12 +118,12 @@ namespace Lattice.Delivery.Transmission
         public bool Update(bool recurrent, uint time, Write ping)
         {
             // sends a ping every interval given it has received the last ping
-            if (recurrent && time > m_shaked + INTERVAL)
+            if (recurrent && m_shaking <= time)
             {
                 // Send Ping
                 if (Signal(time, true, ping))
                 {
-                    m_shaked = time;
+                    m_shaking = time + INTERVAL;
                 }
             }
 
@@ -132,12 +133,7 @@ namespace Lattice.Delivery.Transmission
             m_direct.Update(time);
 
             // if receive hasn't been called in a while it will timeout
-            if (time > m_recieved + TIMEOUT)
-            {
-                // lost connection | Connection Timeout
-                return false;
-            }
-            return true;
+            return m_recieving > time;
         }
     }
 }

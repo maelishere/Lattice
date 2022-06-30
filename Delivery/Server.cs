@@ -8,16 +8,17 @@ namespace Lattice.Delivery
 
     public class Server : Transport
     {
-        private readonly EndPoint m_listen;
+        private readonly Address m_listen;
         private readonly ConcurrentQueue<int> m_disconnecting = new ConcurrentQueue<int>();
         private readonly ConcurrentDictionary<int, Host> m_hosts = new ConcurrentDictionary<int, Host>();
 
         public int Listen { get; }
 
-        public Server(int port, Mode mode) : base(mode)
+        public Server(Mode mode, int port) : base(mode)
         {
             Listen = port;
-            m_listen = Any(port, mode);
+            m_listen = new Address(Any(mode), port);
+
             m_socket.Bind(m_listen);
             // Listen = m_listen.Serialize().GetHashCode();
             Log.Debug($"Server({Listen}): Listening");
@@ -65,17 +66,18 @@ namespace Lattice.Delivery
         // receive data from listen endpoint
         public void Receive(ReceivingFrom received, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error)
         {
-            EndPoint listen = m_listen.Create(m_listen.Serialize());
-            if (!ReceiveFrom(ref listen,
+            EndPoint remote = new IPEndPoint(m_listen.Address, m_listen.Port);
+            ReceiveFrom(ref remote,
                 (Segment segment) =>
                 {
-                    Handle(listen, segment, received, request, acknowledge, error);
-                }))
-            {
-                int id = listen.Serialize().GetHashCode();
-                /*Log.Warning($"Server({Listen}): receive exception with Endpoint({id})");*/
-                error?.Invoke(id, Error.Recieve);
-            }
+                    Handle(remote, segment, received, request, acknowledge, error);
+                },
+                () =>
+                {
+                    Log.Warning($"Server({Listen}): receive exception");
+                    error?.Invoke(Listen, Error.Recieve);
+                    /*m_disconnecting.Enqueue(m_remote.Serialize().GetHashCode());*/
+                });
         }
 
         /// update connections and/or send packets
@@ -116,8 +118,9 @@ namespace Lattice.Delivery
                         EndPoint casted = m_hosts[id].address;
                         if (!SendTo(other, casted))
                         {
-                            /*Log.Warning($"Server({Listen}): send exception with Client({id})");*/
+                            Log.Warning($"Server({Listen}): send exception with Client({id})");
                             error?.Invoke(id, Error.Send);
+                            m_disconnecting.Enqueue(id);
                         }
                     },
                     (uint timestamp, ref Reader reader) =>
@@ -130,11 +133,10 @@ namespace Lattice.Delivery
                         switch (type)
                         {
                             case Request.Connect:
-                                Log.Debug($"Server({Listen}): Client({id}) testing connection");
+                                Log.Debug($"Server({Listen}): Client({id}) connection");
                                 break;
                             case Request.Disconnect:
-                                Log.Debug($"Server({Listen}): Client({id}) wants to disconnect");
-                                Disconnect(id);
+                                Log.Debug($"Server({Listen}): Client({id}) disconnection");
                                 break;
                         }
                         request?.Invoke(id, timestamp, type);

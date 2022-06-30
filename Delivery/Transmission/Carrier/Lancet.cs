@@ -106,11 +106,10 @@ namespace Lattice.Delivery.Transmission.Carrier
                                 m_sending[header.serial].Ack.Time = header.time;
                             }
                         }
-
-                        Release();
                     }
                     break;
             }
+            Release();
         }
 
         public override void Output(uint time, ref Writer writer, Write callback)
