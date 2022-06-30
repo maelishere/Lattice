@@ -8,9 +8,9 @@ namespace Lattice.Delivery.Transmission.Carrier
     {
         const int RESEND = 300;
 
+        private uint m_utime;
         private Frame m_frame;
-        private byte m_serial;
-        private int m_last;
+        private byte m_serial, m_last;
 
         public bool Sending => m_frame.Data.HasValue;
         private Receiving acknowledge { get; }
@@ -20,7 +20,6 @@ namespace Lattice.Delivery.Transmission.Carrier
             this.acknowledge = acknowledge; 
             m_frame = new Frame();
             m_frame.Reset();
-            m_last = -1;
         }
 
         public override void Input(uint time, ref Reader reader)
@@ -51,7 +50,7 @@ namespace Lattice.Delivery.Transmission.Carrier
                         {
                             // packet.Time : time it was proccessed / time the first push was sent
                             // time : time the acknowledge was recived relative to last update
-                            acknowledge(time - header.time, ref reader);
+                            acknowledge((m_utime - header.time), ref reader);
                             m_frame.Reset();
                         }
                     }
@@ -71,10 +70,14 @@ namespace Lattice.Delivery.Transmission.Carrier
 
         public override void Update(uint time)
         {
-            if (m_frame.Data.HasValue && m_frame.Send < time)
+            if (m_frame.Data.HasValue)
             {
-                send(m_frame.Data.Value);
-                m_frame.Post(time + RESEND);
+                if (m_frame.Send < time)
+                {
+                    send(m_frame.Data.Value);
+                    m_frame.Post(time + RESEND);
+                    m_utime = time;
+                }
             }
         }
     }

@@ -13,12 +13,14 @@ namespace Lattice.Delivery
         public int Local { get; }
         public int Remote { get; }
 
-        public Client(Mode mode, IPEndPoint remote, Receiving receive, Action<uint, Request> request, Action<Request, uint> acknowledge, Action<Error> error) : base(mode)
+        private Action<Error> error { get; }
+
+        public Client(Mode mode, IPEndPoint remote, Receiving receiving, Action<uint, Request> request, Action<Request, uint> acknowledge, Action<Error> error) : base(mode)
         {
-            m_socket.Connect(remote);
+            this.error = error;
 
             Remote = remote.Port;
-            // Remote = remote.Serialize().GetHashCode();
+            m_socket.Connect(remote);
             Local = m_socket.LocalEndPoint.Serialize().GetHashCode();
 
             m_host = new Host(remote.Address, remote.Port, 
@@ -27,7 +29,6 @@ namespace Lattice.Delivery
                     try
                     {
                         /// connect was already called
-                        EndPoint casted = m_host.address;
                         m_socket.Send(segment.Array, segment.Offset, segment.Count, SocketFlags.None);
                     }
                     catch (SocketException e)
@@ -38,17 +39,17 @@ namespace Lattice.Delivery
                         error?.Invoke(Error.Send);
                     }
                 }, 
-                receive,
+                receiving,
                 (uint timestamp, ref Reader reader) =>
                 {
                     Request type = (Request)reader.Read();
                     switch (type)
                     {
                         case Request.Connect:
-                            Log.Debug($"Client({Local}): Server({Remote}) connection");
+                            Log.Debug($"Client({Local}): Server({Remote}) connected");
                             break;
                         case Request.Disconnect:
-                            Log.Debug($"Client({Local}): Server({Remote}) disconnection");
+                            Log.Debug($"Client({Local}): Server({Remote}) disconnected");
                             break;
                     }
                     request?.Invoke(timestamp, type);
@@ -87,7 +88,7 @@ namespace Lattice.Delivery
         }
 
         /// receive from socket
-        public void Receive(Action<Error> error)
+        public void Receive()
         {
             EndPoint remote = m_host.address;
             ReceiveFrom(ref remote,
@@ -105,7 +106,7 @@ namespace Lattice.Delivery
         }
 
         /// update connection and/or send packets
-        public void Update(Action<Error> error)
+        public void Update()
         {
             if (!m_host.Update())
             {

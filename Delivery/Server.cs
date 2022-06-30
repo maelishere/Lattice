@@ -14,13 +14,32 @@ namespace Lattice.Delivery
 
         public int Listen { get; }
 
-        public Server(Mode mode, int port) : base(mode)
+        private ReceivingFrom receiving { get; }
+        private Action<int, uint, Request> request { get; }
+        private Action<int, Request, uint> acknowledge { get; }
+        private Action<int, Error> error { get; }
+
+        public Server(Mode mode, int port, ReceivingFrom receiving, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error) : base(mode)
         {
+            this.receiving = receiving;
+            this.request = request;
+            this.acknowledge = acknowledge;
+            this.error = error;
+
             Listen = port;
             m_listen = new Address(Any(mode), port);
-
             m_socket.Bind(m_listen);
-            // Listen = m_listen.Serialize().GetHashCode();
+
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+            {
+                // gets rid of Connection Reset Exception 
+                /// url: https://stackoverflow.com/questions/7201862/an-existing-connection-was-forcibly-closed-by-the-remote-host
+                uint IOC_IN = 0x80000000;
+                uint IOC_VENDOR = 0x18000000;
+                uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+                m_socket.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+            }
+
             Log.Debug($"Server({Listen}): Listening");
         }
 
@@ -63,14 +82,20 @@ namespace Lattice.Delivery
             }
         }
 
+        // for reconnecting, when approriate
+        public void Connect(IPEndPoint remote)
+        {
+            Incoming(remote.Serialize().GetHashCode(), remote, true);
+        }
+
         // receive data from listen endpoint
-        public void Receive(ReceivingFrom received, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error)
+        public void Receive()
         {
             EndPoint remote = new IPEndPoint(m_listen.Address, m_listen.Port);
             ReceiveFrom(ref remote,
                 (Segment segment) =>
                 {
-                    Handle(remote, segment, received, request, acknowledge, error);
+                    Handle(remote, segment);
                 },
                 () =>
                 {
@@ -81,7 +106,7 @@ namespace Lattice.Delivery
         }
 
         /// update connections and/or send packets
-        public void Update(Action<int, Error> error)
+        public void Update()
         {
             foreach (var endpoint in m_hosts)
             {
@@ -106,26 +131,24 @@ namespace Lattice.Delivery
             }
         }
 
-        private void Handle(EndPoint remote, Segment segment, ReceivingFrom received, Action<int, uint, Request> request, Action<int, Request, uint> acknowledge, Action<int, Error> error)
+        private void Incoming(int connection, IPEndPoint point, bool signal)
         {
-            int id = remote.Serialize().GetHashCode();
-            if (!m_hosts.ContainsKey(id))
+            if (!m_hosts.ContainsKey(connection))
             {
-                IPEndPoint point = (IPEndPoint)remote;
                 Host host = new Host(point.Address, point.Port,
                     (Segment other) =>
                     {
-                        EndPoint casted = m_hosts[id].address;
+                        EndPoint casted = m_hosts[connection].address;
                         if (!SendTo(other, casted))
                         {
-                            Log.Warning($"Server({Listen}): send exception with Client({id})");
-                            error?.Invoke(id, Error.Send);
-                            m_disconnecting.Enqueue(id);
+                            Log.Warning($"Server({Listen}): send exception with Client({connection})");
+                            error?.Invoke(connection, Error.Send);
+                            m_disconnecting.Enqueue(connection);
                         }
                     },
                     (uint timestamp, ref Reader reader) =>
                     {
-                        received?.Invoke(id, timestamp, ref reader);
+                        receiving?.Invoke(connection, timestamp, ref reader);
                     },
                     (uint timestamp, ref Reader reader) =>
                     {
@@ -133,13 +156,14 @@ namespace Lattice.Delivery
                         switch (type)
                         {
                             case Request.Connect:
-                                Log.Debug($"Server({Listen}): Client({id}) connection");
+                                Log.Debug($"Server({Listen}): Client({connection}) connected");
                                 break;
                             case Request.Disconnect:
-                                Log.Debug($"Server({Listen}): Client({id}) disconnection");
+                                Log.Debug($"Server({Listen}): Client({connection}) disconnected");
+                                m_disconnecting.Enqueue(connection);
                                 break;
                         }
-                        request?.Invoke(id, timestamp, type);
+                        request?.Invoke(connection, timestamp, type);
                     },
                     (uint delay, ref Reader reader) =>
                     {
@@ -147,24 +171,40 @@ namespace Lattice.Delivery
                         switch (type)
                         {
                             case Request.Connect:
-                                Log.Debug($"Server({Listen}): connected to Client({id})");
+                                Log.Debug($"Server({Listen}): connected to Client({connection})");
                                 break;
                             case Request.Disconnect:
-                                Log.Debug($"Server({Listen}): disconnected from Client({id})");
-                                m_disconnecting.Enqueue(id);
+                                Log.Debug($"Server({Listen}): disconnected from Client({connection})");
+                                m_disconnecting.Enqueue(connection);
                                 break;
                         }
-                        acknowledge?.Invoke(id, type, delay);
+                        acknowledge?.Invoke(connection, type, delay);
                     }
                     );
-                host.Connect();
-                // keep trying to add incase another thread is removing (Update())
-                while (!m_hosts.ContainsKey(id))
+
+                if (signal)
                 {
-                    m_hosts.TryAdd(id, host);
+                    host.Connect();
                 }
-                Log.Debug($"Server({Listen}): connecting to Client({id})");
+                else
+                {
+                    host.n_active = true;
+                }
+
+                // keep trying to add incase another thread is removing (Update())
+                while (!m_hosts.ContainsKey(connection))
+                {
+                    m_hosts.TryAdd(connection, host);
+                }
+
+                Log.Debug($"Server({Listen}): connecting to Client({connection})");
             }
+        }
+
+        private void Handle(EndPoint remote, Segment segment)
+        {
+            int id = remote.Serialize().GetHashCode();
+            Incoming(id, (IPEndPoint)remote, false);
             Reader reading = new Reader(segment);
             m_hosts[id].Input(ref reading);
         }

@@ -12,7 +12,7 @@ namespace Lattice.Delivery
         public Address address { get; }
         internal Connection connection { get; }
 
-        private bool m_active;
+        internal bool n_active;
         private readonly Stopwatch m_stopwatch;
 
         public uint Time => (uint)m_stopwatch.ElapsedMilliseconds;
@@ -26,11 +26,11 @@ namespace Lattice.Delivery
             m_stopwatch.Start();
         }
 
-        public bool Connect() => m_active = connection.Signal(Time, false, Connect);
-        public bool Disconnect() => !(m_active = !connection.Signal(Time, false, Disconnect));
+        public bool Connect() => n_active = connection.Signal(Time, false, Connect);
+        public bool Disconnect() => !(n_active = !connection.Signal(Time, false, Disconnect));
         public void Input(ref Reader reader) => connection.Input(Time, ref reader);
         public void Output(Channel channel, Write callback) => connection.Output(Time, channel, callback);
-        public bool Update() => connection.Update(m_active, Time, Ping);
+        public bool Update() => connection.Update(n_active, Time, Ping);
 
         private static void Ping(ref Writer writer)
         {
