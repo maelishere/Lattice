@@ -5,10 +5,11 @@ namespace Lattice.Delivery.Transmission.Carrier
 {
     using Bolt;
 
+    // Sliding Window Protocol
     public class Lancet : Module
     {
         const int SIZE = 16;
-        const int RESEND = 350;
+        const int RESEND = 255;
 
         public struct Prompt
         {

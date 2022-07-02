@@ -9,7 +9,7 @@ namespace Lattice.Delivery.Transmission.Carrier
     public class Window : Module
     {
         const int SIZE = 32;
-        const int RESEND = 400;
+        const int RESEND = 300;
 
         private Frame[] m_frames;
         private ConcurrentQueue<Segment>[] m_waiting;

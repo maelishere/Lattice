@@ -26,22 +26,26 @@ namespace Lattice.Delivery
             this.acknowledge = acknowledge;
             this.error = error;
 
+            const int SIO_UDP_CONNRESET = -1744830452;
+            m_socket.IOControl(SIO_UDP_CONNRESET, new byte[] { 0 }, new byte[] { 0 });
+
             m_listen = new Address(Any(mode), port);
             m_socket.Bind(m_listen);
 
             Listen = m_listen.Serialize().GetHashCode();
 
-            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-            {
-                // gets rid of Connection Reset Exception 
-                /// url: https://stackoverflow.com/questions/7201862/an-existing-connection-was-forcibly-closed-by-the-remote-host
-                uint IOC_IN = 0x80000000;
-                uint IOC_VENDOR = 0x18000000;
-                uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
-                m_socket.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
-            }
-
             Log.Print($"Server({Listen}): Listening");
+        }
+
+        public bool Find(int connection, out IPEndPoint point)
+        {
+            if (m_hosts.TryGetValue(connection, out Host host))
+            {
+                point = host.address;
+                return true;
+            }
+            point = null;
+            return false;
         }
 
         public bool Disconnect(int connection)
@@ -102,7 +106,6 @@ namespace Lattice.Delivery
                 {
                     Log.Error($"Server({Listen}): receive exception");
                     error?.Invoke(Listen, Error.Recieve);
-                    /*m_disconnecting.Enqueue(m_remote.Serialize().GetHashCode());*/
                 });
         }
 
