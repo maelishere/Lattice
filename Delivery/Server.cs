@@ -40,7 +40,7 @@ namespace Lattice.Delivery
                 m_socket.IOControl((int)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
             }
 
-            Log.Debug($"Server({Listen}): Listening");
+            Log.Print($"Server({Listen}): Listening");
         }
 
         public bool Disconnect(int connection)
@@ -99,7 +99,7 @@ namespace Lattice.Delivery
                 },
                 () =>
                 {
-                    Log.Warning($"Server({Listen}): receive exception");
+                    Log.Error($"Server({Listen}): receive exception");
                     error?.Invoke(Listen, Error.Recieve);
                     /*m_disconnecting.Enqueue(m_remote.Serialize().GetHashCode());*/
                 });
@@ -141,7 +141,7 @@ namespace Lattice.Delivery
                         EndPoint casted = m_hosts[connection].address;
                         if (!SendTo(other, casted))
                         {
-                            Log.Warning($"Server({Listen}): send exception with Client({connection})");
+                            Log.Error($"Server({Listen}): send exception with Client({connection})");
                             error?.Invoke(connection, Error.Send);
                             m_disconnecting.Enqueue(connection);
                         }
@@ -156,10 +156,10 @@ namespace Lattice.Delivery
                         switch (type)
                         {
                             case Request.Connect:
-                                Log.Debug($"Server({Listen}): Client({connection}) connected");
+                                Log.Print($"Server({Listen}): Client({connection}) connected");
                                 break;
                             case Request.Disconnect:
-                                Log.Debug($"Server({Listen}): Client({connection}) disconnected");
+                                Log.Print($"Server({Listen}): Client({connection}) disconnected");
                                 m_disconnecting.Enqueue(connection);
                                 break;
                         }
@@ -171,10 +171,10 @@ namespace Lattice.Delivery
                         switch (type)
                         {
                             case Request.Connect:
-                                Log.Debug($"Server({Listen}): connected to Client({connection})");
+                                Log.Print($"Server({Listen}): connected to Client({connection})");
                                 break;
                             case Request.Disconnect:
-                                Log.Debug($"Server({Listen}): disconnected from Client({connection})");
+                                Log.Print($"Server({Listen}): disconnected from Client({connection})");
                                 m_disconnecting.Enqueue(connection);
                                 break;
                         }
@@ -197,7 +197,7 @@ namespace Lattice.Delivery
                     m_hosts.TryAdd(connection, host);
                 }
 
-                Log.Debug($"Server({Listen}): connecting to Client({connection})");
+                Log.Print($"Server({Listen}): connecting to Client({connection})");
             }
         }
 

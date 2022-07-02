@@ -119,7 +119,10 @@ namespace Lattice.Delivery.Transmission.Carrier
                     if (m_frames[i].Send < time)
                     {
                         send(m_frames[i].Data.Value);
-                        m_frames[i].Post(time + RESEND);
+                        if (m_frames[i].Post(time + RESEND))
+                        {
+                            Log.Loss?.Invoke();
+                        }
                     }
                 }
                 else if (count > 0) // we need to make sure remote has released the frame

@@ -43,7 +43,7 @@ namespace Lattice
             catch (SocketException e)
             {
                 // for mac os
-                Log.Error($"[{e.SocketErrorCode}] {e.Message}");
+                Log.Warning($"[{e.SocketErrorCode}] {e.Message}");
                 return false;
             }
             return true;
@@ -61,7 +61,7 @@ namespace Lattice
                 }
                 catch (SocketException e)
                 {
-                    Log.Error($"[{e.SocketErrorCode}] {e.Message}");
+                    Log.Warning($"[{e.SocketErrorCode}] {e.Message}");
                     exception?.Invoke();
                 }
             }

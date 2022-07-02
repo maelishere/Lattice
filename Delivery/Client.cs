@@ -34,8 +34,8 @@ namespace Lattice.Delivery
                     catch (SocketException e)
                     {
                         // for mac os
-                        Log.Error($"[{e.SocketErrorCode}] {e.Message}");
-                        Log.Debug($"Client({Local}): send exception");
+                        Log.Warning($"[{e.SocketErrorCode}] {e.Message}");
+                        Log.Error($"Client({Local}): send exception");
                         error?.Invoke(Error.Send);
                     }
                 }, 
@@ -46,10 +46,10 @@ namespace Lattice.Delivery
                     switch (type)
                     {
                         case Request.Connect:
-                            Log.Debug($"Client({Local}): Server({Remote}) connected");
+                            Log.Print($"Client({Local}): Server({Remote}) connected");
                             break;
                         case Request.Disconnect:
-                            Log.Debug($"Client({Local}): Server({Remote}) disconnected");
+                            Log.Print($"Client({Local}): Server({Remote}) disconnected");
                             break;
                     }
                     request?.Invoke(timestamp, type);
@@ -60,10 +60,10 @@ namespace Lattice.Delivery
                     switch (type)
                     {
                         case Request.Connect:
-                            Log.Debug($"Client({Local}): connected to Server({Remote})");
+                            Log.Print($"Client({Local}): connected to Server({Remote})");
                             break;
                         case Request.Disconnect:
-                            Log.Debug($"Client({Local}): diconnected from Server({Remote})");
+                            Log.Print($"Client({Local}): diconnected from Server({Remote})");
                             /*m_socket.Shutdown(SocketShutdown.Both);
                             m_socket.Disconnect(false);*/
                             break;
@@ -72,7 +72,7 @@ namespace Lattice.Delivery
                 });
 
             m_host.Connect();
-            Log.Debug($"Client({Local}): connecting to Server({Remote})");
+            Log.Print($"Client({Local}): connecting to Server({Remote})");
         }
 
         // send a push to server, wait for ack or timeout
@@ -100,7 +100,7 @@ namespace Lattice.Delivery
                 () =>
                 {
                     // otherside closed unexpectedly
-                    Log.Warning($"Client({Local}): receive exception");
+                    Log.Error($"Client({Local}): receive exception");
                     error?.Invoke(Error.Recieve);
                 });
         }
