@@ -119,7 +119,8 @@ namespace Lattice.Delivery.Transmission.Carrier
                     if (m_frames[i].Send < time)
                     {
                         send(m_frames[i].Data.Value);
-                        if (m_frames[i].Post(time + RESEND))
+
+                        if (!m_frames[i].Post(time + RESEND))
                         {
                             Log.Loss?.Invoke();
                         }

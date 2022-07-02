@@ -30,7 +30,7 @@
             Send = time;
             Loss++;
             Count++;
-            return Loss < 1;
+            return Loss < 1; // true if it's the frist time being sent
         }
     }
 }

@@ -75,11 +75,11 @@ namespace Lattice.Delivery.Transmission.Carrier
                 if (m_frame.Send < time)
                 {
                     send(m_frame.Data.Value);
+
                     if (m_frame.Post(time + RESEND))
-                    {
                         m_utime = time;
+                    else
                         Log.Loss?.Invoke();
-                    }
                 }
             }
         }
