@@ -70,6 +70,7 @@ namespace Lattice.Delivery.Transmission.Carrier
                         {
                             if (header.time > m_frames[header.serial].Ack.Time)
                             {
+                                Log.Lost?.Invoke(m_frames[header.serial].Loss);
                                 m_frames[header.serial].Reset();
                                 m_frames[header.serial].Ack.Count = seq;
                                 m_frames[header.serial].Ack.Time = header.time;

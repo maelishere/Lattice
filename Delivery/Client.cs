@@ -19,9 +19,9 @@ namespace Lattice.Delivery
         {
             this.error = error;
 
-            Remote = remote.Port;
             m_socket.Connect(remote);
             Local = m_socket.LocalEndPoint.Serialize().GetHashCode();
+            Remote = Any(mode, remote.Port).Serialize().GetHashCode();
 
             m_host = new Host(remote.Address, remote.Port, 
                 (Segment segment) =>

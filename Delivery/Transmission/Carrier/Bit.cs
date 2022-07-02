@@ -51,6 +51,7 @@ namespace Lattice.Delivery.Transmission.Carrier
                             // packet.Time : time it was proccessed / time the first push was sent
                             // time : time the acknowledge was recived relative to last update
                             acknowledge((m_utime - header.time), ref reader);
+                            Log.Lost?.Invoke(m_frame.Loss);
                             m_frame.Reset();
                         }
                     }

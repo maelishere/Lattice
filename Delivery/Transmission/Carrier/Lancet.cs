@@ -97,6 +97,7 @@ namespace Lattice.Delivery.Transmission.Carrier
                         {
                             if (header.time > m_sending[header.serial].Ack.Time)
                             {
+                                Log.Lost?.Invoke(m_sending[header.serial].Loss);
                                 m_sending[header.serial].Reset();
                                 m_remote.Value = reader.ReadUShort();
                                 m_there = reader.Read();

@@ -26,9 +26,10 @@ namespace Lattice.Delivery
             this.acknowledge = acknowledge;
             this.error = error;
 
-            Listen = port;
             m_listen = new Address(Any(mode), port);
             m_socket.Bind(m_listen);
+
+            Listen = m_listen.Serialize().GetHashCode();
 
             if (Environment.OSVersion.Platform == PlatformID.Win32NT)
             {
