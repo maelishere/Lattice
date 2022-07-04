@@ -113,8 +113,6 @@ namespace Lattice.Delivery.Transmission.Carrier
         {
             for (byte i = 0; i < SIZE; i++)
             {
-                int count = m_waiting[i].Count;
-
                 if (m_frames[i].Data.HasValue)
                 {
                     if (m_frames[i].Send < time)
@@ -127,7 +125,7 @@ namespace Lattice.Delivery.Transmission.Carrier
                         }
                     }
                 }
-                else if (count > 0) // we need to make sure remote has released the frame
+                else if (m_waiting[i].Count > 0)
                 {
                     do
                     {

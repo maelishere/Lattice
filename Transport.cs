@@ -36,6 +36,14 @@ namespace Lattice
             m_socket.Close();
         }
 
+        internal void Configure(int receive, int send)
+        {
+            m_socket.ReceiveBufferSize = receive;
+            m_socket.SendBufferSize = send;
+        }
+
+        internal void Configure(int buffer) => Configure(buffer, buffer);
+
         protected bool SendTo(Segment segment, EndPoint remote)
         {
             try

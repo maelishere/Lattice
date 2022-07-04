@@ -8,9 +8,13 @@ namespace Lattice.Delivery
 
     public class Server : Transport
     {
+        // for now not using non allocation
+        private EndPoint m_remote;
+
         private readonly Address m_listen;
         private readonly ConcurrentQueue<int> m_disconnecting = new ConcurrentQueue<int>();
         private readonly ConcurrentDictionary<int, Host> m_hosts = new ConcurrentDictionary<int, Host>();
+        private readonly ConcurrentDictionary<int, Address> m_disconnected = new ConcurrentDictionary<int, Address>();
 
         public int Listen { get; }
 
@@ -30,6 +34,8 @@ namespace Lattice.Delivery
             m_socket.IOControl(SIO_UDP_CONNRESET, new byte[] { 0 }, new byte[] { 0 });
 
             m_listen = new Address(Any(mode), port);
+            m_remote = new IPEndPoint(m_listen.Address, 0);
+
             m_socket.Bind(m_listen);
 
             Listen = m_listen.Serialize().GetHashCode();
@@ -88,19 +94,24 @@ namespace Lattice.Delivery
         }
 
         // for reconnecting, when approriate
-        public void Connect(IPEndPoint remote)
+        //      only works for if the client actually disconnected (for any reason)
+        public bool Reconnect(int connection)
         {
-            Incoming(remote.Serialize().GetHashCode(), remote, true);
+            if (m_disconnected.TryRemove(connection, out Address address))
+            {
+                Incoming(connection, address, true);
+                return true;
+            }
+            return false;
         }
 
         // receive data from listen endpoint
         public void Receive()
         {
-            EndPoint remote = new IPEndPoint(m_listen.Address, m_listen.Port);
-            ReceiveFrom(ref remote,
+            ReceiveFrom(ref m_remote,
                 (Segment segment) =>
                 {
-                    Handle(remote, segment);
+                    Handle(m_remote, segment);
                 },
                 () =>
                 {
@@ -126,10 +137,10 @@ namespace Lattice.Delivery
             {
                 if (m_disconnecting.TryDequeue(out int connection))
                 {
-                    // keep trying to add incase another thread is adding (Tick() -> Handle())
-                    while (m_hosts.ContainsKey(connection))
+                    if (m_hosts.TryRemove(connection, out Host host))
                     {
-                        m_hosts.TryRemove(connection, out Host _);
+                        // add it to the list of previously connected clients
+                        m_disconnected.TryAdd(connection, host.address);
                     }
                 }
             }
@@ -195,13 +206,10 @@ namespace Lattice.Delivery
                     host.n_active = true;
                 }
 
-                // keep trying to add incase another thread is removing (Update())
-                while (!m_hosts.ContainsKey(connection))
+                if (m_hosts.TryAdd(connection, host))
                 {
-                    m_hosts.TryAdd(connection, host);
+                    Log.Print($"Server({Listen}): connecting to Client({connection})");
                 }
-
-                Log.Print($"Server({Listen}): connecting to Client({connection})");
             }
         }
 
