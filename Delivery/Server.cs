@@ -8,7 +8,6 @@ namespace Lattice.Delivery
 
     public class Server : Transport
     {
-        // for now not using non allocation
         private EndPoint m_remote;
 
         private readonly Address m_listen;
@@ -29,9 +28,6 @@ namespace Lattice.Delivery
             this.request = request;
             this.acknowledge = acknowledge;
             this.error = error;
-
-            const int SIO_UDP_CONNRESET = -1744830452;
-            m_socket.IOControl(SIO_UDP_CONNRESET, new byte[] { 0 }, new byte[] { 0 });
 
             m_listen = new Address(Any(mode), port);
             m_remote = new IPEndPoint(m_listen.Address, 0);

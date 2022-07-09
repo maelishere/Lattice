@@ -26,15 +26,8 @@ namespace Lattice.Delivery
             m_host = new Host(remote.Address, remote.Port, 
                 (Segment segment) =>
                 {
-                    try
+                    if (!Send(segment))
                     {
-                        /// connect was already called
-                        m_socket.Send(segment.Array, segment.Offset, segment.Count, SocketFlags.None);
-                    }
-                    catch (SocketException e)
-                    {
-                        // for mac os
-                        Log.Warning($"[{e.SocketErrorCode}] {e.Message}");
                         Log.Error($"Client({Local}): send exception");
                         error?.Invoke(Error.Send);
                     }

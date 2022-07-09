@@ -29,6 +29,10 @@ namespace Lattice
             }
 
             m_socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+
+            const int SIO_UDP_CONNRESET = -1744830452;
+            m_socket.IOControl(SIO_UDP_CONNRESET, new byte[] { 0 }, new byte[] { 0 });
+
         }
 
         public void Close()
@@ -44,11 +48,29 @@ namespace Lattice
 
         internal void Configure(int buffer) => Configure(buffer, buffer);
 
+        protected bool Send(Segment segment)
+        {
+            try
+            {
+                /// connect was already called
+                int sent = m_socket.Send(segment.Array, segment.Offset, segment.Count, SocketFlags.None);
+                Log.Sent?.Invoke(sent);
+            }
+            catch (SocketException e)
+            {
+                // for mac os
+                Log.Warning($"[{e.SocketErrorCode}] {e.Message}");
+                return false;
+            }
+            return true;
+        }
+
         protected bool SendTo(Segment segment, EndPoint remote)
         {
             try
             {
-                m_socket.SendTo(segment.Array, segment.Offset, segment.Count, SocketFlags.None, remote);
+                int sent = m_socket.SendTo(segment.Array, segment.Offset, segment.Count, SocketFlags.None, remote);
+                Log.Sent?.Invoke(sent);
             }
             catch (SocketException e)
             {
@@ -68,6 +90,7 @@ namespace Lattice
                     byte[] buffer = new byte[Buffer.MaxLength];
                     int size = m_socket.ReceiveFrom(buffer, 0, buffer.Length, SocketFlags.None, ref remote);
                     callback?.Invoke(new Segment(buffer, 0, size));
+                    Log.Received?.Invoke(size);
                 }
                 catch (SocketException e)
                 {

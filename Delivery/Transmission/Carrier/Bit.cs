@@ -4,6 +4,7 @@ namespace Lattice.Delivery.Transmission.Carrier
 {
     using Bolt;
 
+    // Mix of Bit with Stop and Wait Protocol
     public class Bit : Module
     {
         const int RESEND = 300;

@@ -6,6 +6,7 @@ namespace Lattice.Delivery.Transmission.Carrier
 {
     using Bolt;
 
+    // Unordered Tweak of Sliding Window Protocol
     public class Window : Module
     {
         const int SIZE = 32;
