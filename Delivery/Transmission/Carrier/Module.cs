@@ -4,6 +4,8 @@ namespace Lattice.Delivery.Transmission.Carrier
 {
     using Bolt;
 
+    // Raw
+    // Header: 5 bytes (including 1 byte: channel from connection)
     public class Module
     {
         internal Module(Action<Segment> send, Receiving receive, Responding response)

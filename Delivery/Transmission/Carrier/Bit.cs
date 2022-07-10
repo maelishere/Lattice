@@ -5,11 +5,12 @@ namespace Lattice.Delivery.Transmission.Carrier
     using Bolt;
 
     // Mix of Bit with Stop and Wait Protocol
+    // Header: 7 bytes (including 1 byte: channel from connection)
     public class Bit : Module
     {
         const int RESEND = 300;
 
-        private uint m_utime;
+        private uint m_sent;
         private Frame m_frame;
         private byte m_serial, m_last;
 
@@ -49,9 +50,8 @@ namespace Lattice.Delivery.Transmission.Carrier
                     {
                         if (header.serial == m_serial)
                         {
-                            // packet.Time : time it was proccessed / time the first push was sent
-                            // time : time the acknowledge was recived relative to last update
-                            acknowledge((m_utime - header.time), ref reader);
+                            // m_sent : time it was proccessed / time the first push was sent
+                            acknowledge(time - m_sent, ref reader);
                             Log.Lost?.Invoke(m_frame.Loss);
                             m_frame.Reset();
                         }
@@ -77,11 +77,12 @@ namespace Lattice.Delivery.Transmission.Carrier
                 if (m_frame.Send < time)
                 {
                     send(m_frame.Data.Value);
+                    m_sent = time;
 
-                    if (m_frame.Post(time + RESEND))
-                        m_utime = time;
-                    else
+                    if (!m_frame.Post(time + RESEND))
+                    {
                         Log.Loss?.Invoke();
+                    }
                 }
             }
         }

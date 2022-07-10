@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Collections.Concurrent;
 
-
 namespace Lattice.Delivery.Transmission.Carrier
 {
     using Bolt;
 
     // Unordered Tweak of Sliding Window Protocol
+    // Header: 11 bytes (including 1 byte: channel from connection)
     public class Window : Module
     {
         const int SIZE = 32;
@@ -21,6 +21,7 @@ namespace Lattice.Delivery.Transmission.Carrier
             m_waiting = new ConcurrentQueue<Segment>[SIZE];
             for (int i = 0; i < SIZE; i++)
             {
+                m_frames[i] = new Frame();
                 m_waiting[i] = new ConcurrentQueue<Segment>();
             }
         }
@@ -52,8 +53,8 @@ namespace Lattice.Delivery.Transmission.Carrier
                                 writer.Write(seq);
                             }));
 
-                        // ? need to make sure it wasn't any previous or duplicate frame at the position
-                        if (seq >= m_frames[header.serial].Push.Count)
+                        // need to make sure it wasn't any previous or duplicate frame at the position
+                        if (seq > m_frames[header.serial].Push.Count)
                         {
                             if (header.time > m_frames[header.serial].Push.Time)
                             {
@@ -66,8 +67,8 @@ namespace Lattice.Delivery.Transmission.Carrier
                     break;
                 case Command.Ack:
                     {
-                        // ? need to make sure it wasn't for any previous or duplicate frame
-                        if (seq >= m_frames[header.serial].Ack.Count)
+                        // need to make sure it wasn't for any previous or duplicate frame
+                        if (seq > m_frames[header.serial].Ack.Count)
                         {
                             if (header.time > m_frames[header.serial].Ack.Time)
                             {
@@ -89,6 +90,7 @@ namespace Lattice.Delivery.Transmission.Carrier
             {
                 if (m_waiting[i].Count < level || i == SIZE - 1)
                 {
+                    m_frames[i].Seq++;
                     writer.WriteHeader(Command.Push, i, time);
                     writer.Write(m_frames[i].Seq);
                     callback?.Invoke(ref writer);
@@ -104,7 +106,6 @@ namespace Lattice.Delivery.Transmission.Carrier
                         m_waiting[i].Enqueue(segment);
                         /*Log.Debug($"Level {level} | Queue {i} -> Wating {m_waiting[i].Count}");*/
                     }
-                    m_frames[i].Seq++;
                     break;
                 }
             }
@@ -128,16 +129,12 @@ namespace Lattice.Delivery.Transmission.Carrier
                 }
                 else if (m_waiting[i].Count > 0)
                 {
-                    do
+                    if (m_waiting[i].TryDequeue(out Segment segment))
                     {
-                        if (m_waiting[i].TryDequeue(out Segment segment))
-                        {
-                            m_frames[i].Reset();
-                            m_frames[i].Data = segment;
-                            /*Log.Debug($"Sending Frame {i}");*/
-                        }
+                        m_frames[i].Reset();
+                        m_frames[i].Data = segment;
+                        /*Log.Debug($"Sending Frame {i}");*/
                     }
-                    while (!m_frames[i].Data.HasValue);
                 }
             }
         }

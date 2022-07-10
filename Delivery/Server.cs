@@ -168,6 +168,11 @@ namespace Lattice.Delivery
                         {
                             case Request.Connect:
                                 Log.Print($"Server({Listen}): Client({connection}) connected");
+                                if (!signal)
+                                {
+                                    // only allow pinging if it sent a connect request
+                                    m_hosts[connection].n_active = true;
+                                }
                                 break;
                             case Request.Disconnect:
                                 Log.Print($"Server({Listen}): Client({connection}) disconnected");
@@ -197,10 +202,6 @@ namespace Lattice.Delivery
                 {
                     host.Connect();
                 }
-                else
-                {
-                    host.n_active = true;
-                }
 
                 if (m_hosts.TryAdd(connection, host))
                 {
@@ -212,9 +213,12 @@ namespace Lattice.Delivery
         private void Handle(EndPoint remote, Segment segment)
         {
             int id = remote.Serialize().GetHashCode();
-            Incoming(id, (IPEndPoint)remote, false);
-            Reader reading = new Reader(segment);
-            m_hosts[id].Input(ref reading);
+            if (!m_disconnected.ContainsKey(id))
+            {
+                Incoming(id, (IPEndPoint)remote, false);
+                Reader reading = new Reader(segment);
+                m_hosts[id].Input(ref reading);
+            }
         }
     }
 }

@@ -7,7 +7,6 @@
         public int Loss;
         public uint Sent;
         public uint Send;
-        public uint Count;
 
         public Segment? Data;
 
@@ -20,7 +19,6 @@
             Loss = -1;
             Sent = 0;
             Send = 0;
-            Count = 0;
             Data = null;
         }
 
@@ -29,7 +27,6 @@
             Sent = Send;
             Send = time;
             Loss++;
-            Count++;
             return Loss < 1; // true if it's the frist time being sent
         }
     }
