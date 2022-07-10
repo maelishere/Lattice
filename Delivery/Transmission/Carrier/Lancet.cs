@@ -6,7 +6,7 @@ namespace Lattice.Delivery.Transmission.Carrier
     using Bolt;
 
     // Sliding Window Protocol
-    // Header: 19 bytes (including 1 byte: channel from connection)
+    // Header: 11 bytes (including 1 byte: channel from connection)
     public class Lancet : Module
     {
         const int SIZE = 16;
@@ -25,19 +25,19 @@ namespace Lattice.Delivery.Transmission.Carrier
         }
 
         private byte m_next/*queue*/;
-        private ulong m_sequence = 0/*packet order*/;
+        private uint m_sequence = 0/*packet order*/;
 
         private Frame[] m_sending;
         private ConcurrentQueue<Segment>[] m_waiting;
 
-        private ulong m_marker = 0/*the packing we are waiting for*/;
-        private ConcurrentDictionary<ulong, Prompt> m_received;
+        private uint m_marker = 1/*the packing we are waiting for (it starts at 1, output increments)*/;
+        private ConcurrentDictionary<uint, Prompt> m_received;
 
         internal Lancet(Action<Segment> send, Receiving receive, Responding response) : base(send, receive, response)
         {
             m_sending = new Frame[SIZE];
             m_waiting = new ConcurrentQueue<Segment>[SIZE];
-            m_received = new ConcurrentDictionary<ulong, Prompt>();
+            m_received = new ConcurrentDictionary<uint, Prompt>();
             for (int i = 0; i < SIZE; i++)
             {
                 m_sending[i] = new Frame();
@@ -48,7 +48,8 @@ namespace Lattice.Delivery.Transmission.Carrier
         public override void Input(uint time, ref Reader reader)
         {
             Header header = reader.ReadHeader();
-            uint seq = reader.ReadUInt();
+            uint sequence = reader.ReadUInt();
+
             switch (header.command)
             {
                 case Command.Push:
@@ -57,19 +58,18 @@ namespace Lattice.Delivery.Transmission.Carrier
                             (ref Writer writer) =>
                             {
                                 writer.WriteHeader(Command.Ack, header.serial, header.time);
-                                writer.Write(seq);
+                                writer.Write(sequence);
                             }));
 
                         // need to make sure it wasn't any previous or duplicate frame at the position
-                        if (seq > m_sending[header.serial].Push.Count)
+                        if (sequence > m_sending[header.serial].Push.Count)
                         {
                             if (header.time > m_sending[header.serial].Push.Time)
                             {
-                                ulong order = reader.ReadULong();
-                                m_received.TryAdd(order, new Prompt(header.time, reader));
+                                m_received.TryAdd(sequence, new Prompt(header.time, reader));
 
                                /* Log.Print($"Frame {header.serial} aquired {seq}");*/
-                                m_sending[header.serial].Push.Count = seq;
+                                m_sending[header.serial].Push.Count = sequence;
                                 m_sending[header.serial].Push.Time = header.time;
                             }
                         }
@@ -78,7 +78,7 @@ namespace Lattice.Delivery.Transmission.Carrier
                 case Command.Ack:
                     {
                         // need to make sure it wasn't for any previous or duplicate frame
-                        if (seq > m_sending[header.serial].Ack.Count)
+                        if (sequence > m_sending[header.serial].Ack.Count)
                         {
                             if (header.time > m_sending[header.serial].Ack.Time)
                             {
@@ -86,7 +86,7 @@ namespace Lattice.Delivery.Transmission.Carrier
                                 m_sending[header.serial].Reset();
                                 /*Log.Debug($"Frame {header.serial} acknowledged");*/
 
-                                m_sending[header.serial].Ack.Count = seq;
+                                m_sending[header.serial].Ack.Count = sequence;
                                 m_sending[header.serial].Ack.Time = header.time;
                             }
                         }
@@ -109,10 +109,8 @@ namespace Lattice.Delivery.Transmission.Carrier
 
         public override void Output(uint time, ref Writer writer, Write callback)
         {
-            m_sending[m_next].Seq++;
-
+            m_sequence++;
             writer.WriteHeader(Command.Push, m_next, time);
-            writer.Write(m_sending[m_next].Seq);
             writer.Write(m_sequence);
 
             callback?.Invoke(ref writer);
@@ -120,8 +118,8 @@ namespace Lattice.Delivery.Transmission.Carrier
             m_waiting[m_next].Enqueue(writer.ToSegment());
 
             /*Log.Debug($"Queued for Frame {m_next}, Waiting {m_waiting[m_next].Count}");*/
-            m_next = Increment(m_next);
-            m_sequence++;
+            // keep it within the window size
+            m_next = (byte)(m_next < SIZE - 1 ? m_next + 1 : 0);
         }
 
         public override void Update(uint time)
@@ -151,7 +149,5 @@ namespace Lattice.Delivery.Transmission.Carrier
                 }
             }
         }
-
-        internal static byte Increment(int current) => (byte)(current < SIZE - 1 ? current + 1 : 0);
     }
 }

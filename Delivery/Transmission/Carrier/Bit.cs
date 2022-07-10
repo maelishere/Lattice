@@ -39,21 +39,35 @@ namespace Lattice.Delivery.Transmission.Carrier
                                 writer.Write(segment);
                             }));
 
+                        // need to make sure it wasn't any previous or duplicate frame at the position
                         if (header.serial != m_last)
                         {
-                            receive?.Invoke(header.time, ref reader);
-                            m_last = header.serial;
+                            if (header.time > m_frame.Push.Time)
+                            {
+                                receive?.Invoke(header.time - 1, ref reader);
+
+                                m_last = header.serial;
+                                /*m_frame.Push.Count = header.serial;*/
+                                m_frame.Push.Time = header.time;
+                            }
                         }
                     }
                     break;
                 case Command.Ack:
                     {
+                        // need to make sure it wasn't for any previous or duplicate frame
                         if (header.serial == m_serial)
                         {
-                            // m_sent : time it was proccessed / time the first push was sent
-                            acknowledge(time - m_sent, ref reader);
-                            Log.Lost?.Invoke(m_frame.Loss);
-                            m_frame.Reset();
+                            if (header.time > m_frame.Ack.Time)
+                            {
+                                // m_sent : time the last push was sent
+                                acknowledge(time - m_sent, ref reader);
+                                Log.Lost?.Invoke(m_frame.Loss);
+                                m_frame.Reset();
+
+                                /*m_frame.Ack.Count = header.serial;*/
+                                m_frame.Ack.Time = header.time;
+                            }
                         }
                     }
                     break;
@@ -63,7 +77,7 @@ namespace Lattice.Delivery.Transmission.Carrier
         public override void Output(uint time, ref Writer writer, Write callback)
         {
             m_serial = (byte)(m_serial < 255 ? m_serial + 1 : 0);
-            writer.WriteHeader(Command.Push, m_serial, time);
+            writer.WriteHeader(Command.Push, m_serial, time + 1); /*connect shouldn't be sent at time 0*/
             callback(ref writer);
 
             m_frame.Reset();
