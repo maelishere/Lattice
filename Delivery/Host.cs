@@ -35,19 +35,19 @@ namespace Lattice.Delivery
         private static void Ping(ref Writer writer)
         {
             writer.Write((byte)Request.Ping);
-            writer.Write(new byte[32]);
+            /*writer.Write(new byte[32]);*/
         }
 
         private static void Connect(ref Writer writer)
         {
             writer.Write((byte)Request.Connect);
-            writer.Write(new byte[32]);
+            /*writer.Write(new byte[32]);*/
         }
 
         private static void Disconnect(ref Writer writer)
         {
             writer.Write((byte)Request.Disconnect);
-            writer.Write(new byte[32]);
+            /*writer.Write(new byte[32]);*/
         }
     }
 }

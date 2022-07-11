@@ -7,6 +7,7 @@ namespace Lattice.Delivery.Transmission.Carrier
 
     // Sliding Window Protocol
     // Header: 11 bytes (including 1 byte: channel from connection)
+    // Ack is the same size as the header
     public class Lancet : Module
     {
         const int SIZE = 16;

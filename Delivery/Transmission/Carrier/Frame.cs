@@ -12,7 +12,6 @@
 
         public Memo Ack;
         public Memo Push;
-        public uint Seq;
 
         public void Reset()
         {

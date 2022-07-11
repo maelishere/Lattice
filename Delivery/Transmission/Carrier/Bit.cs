@@ -6,6 +6,7 @@ namespace Lattice.Delivery.Transmission.Carrier
 
     // Mix of Bit with Stop and Wait Protocol
     // Header: 7 bytes (including 1 byte: channel from connection)
+    // Ack is the same size as what was push
     public class Bit : Module
     {
         const int RESEND = 300;
