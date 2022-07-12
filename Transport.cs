@@ -30,9 +30,11 @@ namespace Lattice
 
             m_socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
 
-            const int SIO_UDP_CONNRESET = -1744830452;
-            m_socket.IOControl(SIO_UDP_CONNRESET, new byte[] { 0 }, new byte[] { 0 });
-
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+            {
+                const int SIO_UDP_CONNRESET = -1744830452;
+                m_socket.IOControl(SIO_UDP_CONNRESET, new byte[] { 0 }, new byte[] { 0 });
+            }
         }
 
         public void Close()
